@@ -4,28 +4,27 @@ import argparse
 import requests
 from datetime import datetime
 
-# ---------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # CONFIGURATION
-# ---------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 BASE_URL = "https://app.trackingtime.co/api/v4"
 
-# If your account/team requires specifying an account ID in the path, set it here.
-# e.g. ACCOUNT_ID = 12345 => "https://app.trackingtime.co/api/v4/12345/..."
-ACCOUNT_ID = None
+# If your account/team requires specifying an account ID in the path:
+# e.g. https://app.trackingtime.co/api/v4/<ACCOUNT_ID>/*
+ACCOUNT_ID = None  # e.g. 12345
 
-# The user_id that will be assigned to tasks and time entries.
+# The user ID for created tasks/time entries. Typically your own user or a coworker.
 USER_ID = 123456
 
-USER_AGENT = "TimesheetTaskCreator (myemail@example.com)"
+USER_AGENT = "TimesheetTaskCreator (calum@switchbatteries.com)"
 
 # ---------------------------------------------------------------------------
-# HELPER FUNCTIONS
+# API CALLS
 # ---------------------------------------------------------------------------
 
 def get_account_info(username, password):
     """
-    Calls GET /api/v4/users?filter=ALL to retrieve info about all users in the account.
-    Requires admin or project manager privileges.
+    Calls GET /api/v4/users?filter=ALL to list all users in the account.
     Prints the raw JSON response.
     """
     if ACCOUNT_ID:
@@ -38,15 +37,53 @@ def get_account_info(username, password):
         "Content-Type": "application/json"
     }
 
-    print("[+] Retrieving account info (list of all users)...\n")
-    resp = requests.get(url, auth=(username, password), headers=headers)
-
-    if resp.status_code == 200:
-        # Print the raw JSON
-        print(resp.text)
+    print("[+] Retrieving account info (all users)...\n")
+    r = requests.get(url, auth=(username, password), headers=headers)
+    if r.status_code == 200:
+        print(r.text)  # Raw JSON
     else:
-        print(f"[-] HTTP Error {resp.status_code}: {resp.text}")
+        print(f"[-] HTTP {r.status_code} Error: {r.text}")
 
+
+def get_all_projects_raw(username, password):
+    """
+    Calls GET /api/v4/projects?filter=ALL to list all projects in the account.
+    Prints a short summary for each project: (ID, Name, Status, etc.)
+    """
+    if ACCOUNT_ID:
+        url = f"{BASE_URL}/{ACCOUNT_ID}/projects?filter=ALL"
+    else:
+        url = f"{BASE_URL}/projects?filter=ALL"
+
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Content-Type": "application/json"
+    }
+
+    print("[+] Retrieving all projects...\n")
+    r = requests.get(url, auth=(username, password), headers=headers)
+    if r.status_code == 200:
+        data = r.json()
+        print(data)
+        if "data" in data and isinstance(data["data"], list):
+            projects = data["data"]
+            print(f"Found {len(projects)} projects:\n")
+
+            for p in projects:
+                pid = p.get("id", "N/A")
+                pname = p.get("name", "(no name)")
+                pstatus = p.get("status", "N/A")        # e.g. ACTIVE / ARCHIVED
+                is_archived = p.get("is_archived", False)
+                print(f"  ID: {pid}, Name: {pname}, Status: {pstatus}, Archived: {is_archived}")
+        else:
+            print("[-] Unexpected response format, 'data' not a list?")
+    else:
+        print(f"[-] HTTP {r.status_code} Error: {r.text}")
+
+
+# ---------------------------------------------------------------------------
+# HELPERS FOR TIMESHEET PARSING (if used)
+# ---------------------------------------------------------------------------
 
 def parse_date(date_str):
     """
@@ -127,6 +164,7 @@ def get_all_projects(username, password):
             pname = p.get("name", "")
             if pname:
                 mapping[pname.lower()] = pid
+        print(mapping)
         return mapping
     else:
         print(f"Error fetching projects: HTTP {resp.status_code} => {resp.text}")
@@ -241,18 +279,17 @@ def process_timesheet_file(filepath, username, password):
     in_timesheet_block = False
     current_project_name = None
 
-    # Cache so if we create the same (project_id, task_name) multiple times in the same run, we reuse the ID
-    task_cache = {}
-
     with open(filepath, "r", encoding="utf-8") as f:
         for raw_line in f:
             line = raw_line.rstrip("\n")
             stripped = line.strip()
+
             if not stripped:
                 continue
 
             # Check for date line
             if stripped.startswith("# date"):
+                # e.g. "# date 290125"
                 parts = stripped.split()
                 if len(parts) == 3:
                     date_str = parts[2]
@@ -318,29 +355,44 @@ def process_timesheet_file(filepath, username, password):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Parse a timesheet file and create tasks/time entries ONLY for existing projects in TrackingTime."
+        description="A script that can list users, list projects, or parse a timesheet file."
     )
-    parser.add_argument("timesheet_file", help="Path to the timesheet file.")
-    parser.add_argument("--username", required=True, help="Your TrackingTime username (email).")
-    parser.add_argument("--password", required=True, help="Your TrackingTime password.")
+    parser.add_argument(
+        "timesheet_file",
+        nargs="?",
+        help="Path to the timesheet file (omit if using --get-info or --get-projects)."
+    )
+    parser.add_argument("--username", required=True, help="TrackingTime username (email).")
+    parser.add_argument("--password", required=True, help="TrackingTime password.")
+
     parser.add_argument(
         "--get-info",
         action="store_true",
-        help="Print raw JSON of all users in the account (GET /users?filter=ALL)."
+        help="List all users in the account (raw JSON)."
+    )
+    parser.add_argument(
+        "--get-projects",
+        action="store_true",
+        help="List all projects in the account."
     )
 
     args = parser.parse_args()
 
-    # If user requested to get account info, do that and exit
+    # If user requested to list users:
     if args.get_info:
         get_account_info(args.username, args.password)
         return
 
-    # Otherwise, if a timesheet file is provided, process it
+    # If user requested to list projects:
+    if args.get_projects:
+        get_all_projects_raw(args.username, args.password)
+        return
+
+    # Otherwise, parse timesheet (if file provided)
     if args.timesheet_file:
         process_timesheet_file(args.timesheet_file, args.username, args.password)
     else:
-        print("No timesheet file specified, and --get-info not used. Nothing to do.")
+        print("No action specified (no file, and not listing users or projects).")
         parser.print_help()
 
 
