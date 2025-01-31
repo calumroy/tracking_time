@@ -5,17 +5,61 @@ import requests
 from datetime import datetime
 
 # ---------------------------------------------------------------------------
-# CONFIGURATION (you can also pass account/team IDs, user IDs, etc., below)
+# CONFIGURATION (Customize as needed)
 # ---------------------------------------------------------------------------
 BASE_URL = "https://app.trackingtime.co/api/v4"
-USER_ID = 123456  # The user for whom we're creating these entries
-# If your account requires specifying an account ID/team ID in the path, set:
+
+# If your account/team requires specifying an account ID in the URL path
+# e.g. https://app.trackingtime.co/api/v4/<ACCOUNT_ID>/*, set it here:
 ACCOUNT_ID = None  # e.g. 12345
+
+# The user ID that we assign timesheet entries to (your ID or a coworker's ID)
+USER_ID = 625297  
+
 USER_AGENT = "TimesheetParser (myemail@example.com)"
 
 # ---------------------------------------------------------------------------
 # HELPER FUNCTIONS
 # ---------------------------------------------------------------------------
+
+def list_users(username, password):
+    """
+    Lists all users in the current account via GET /api/v4/users.
+    Only admins / project managers can do this.
+    """
+    # If you need an account ID in the path, adjust here
+    # For example: f"{BASE_URL}/{ACCOUNT_ID}/users"
+    if ACCOUNT_ID:
+        url = f"{BASE_URL}/{ACCOUNT_ID}/users?filter=ALL"
+    else:
+        url = f"{BASE_URL}/users?filter=ALL"  # or filter=ACTIVE, etc.
+
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Content-Type": "application/json",
+    }
+
+    print("[+] Fetching list of users...")
+    resp = requests.get(url, auth=(username, password), headers=headers)
+
+    if resp.status_code == 200:
+        data = resp.json()
+        # Should look like: {"response": {...}, "data": [ {..user1..}, {..user2..}, ... ]}
+        if "data" in data and isinstance(data["data"], list):
+            users_list = data["data"]
+            print(f"\nFound {len(users_list)} users:\n")
+            for user in users_list:
+                uid = user.get("id", "N/A")
+                name = user.get("name", "")
+                surname = user.get("surname", "")
+                email = user.get("email", "")
+                role = user.get("role", "")
+                print(f"  ID: {uid:<6} | {name} {surname} | {email} | Role: {role}")
+            print("\nDone.")
+        else:
+            print("[-] Could not parse user list. Check response format.")
+    else:
+        print(f"[-] HTTP Error {resp.status_code}: {resp.text}")
 
 def parse_date(date_str):
     """
@@ -39,28 +83,23 @@ def parse_date(date_str):
 
 def parse_time_range(line):
     """
-    Given something like:
-        '9.00 - 12.00 Software design PCS sub controller'
-    extract:
-        start_time_str => '9.00'
-        end_time_str   => '12.00'
-        remainder      => 'Software design PCS sub controller'
-    Returns (start_time, end_time, description) or (None, None, None) if not matched.
+    Parse lines like:
+        9.00 - 12.00 Software design PCS sub controller
+    Return (start_time_str, end_time_str, description) or (None, None, None)
     """
     pattern = r"^\s*(\d{1,2}\.\d{1,2})\s*-\s*(\d{1,2}\.\d{1,2})\s+(.*)$"
     match = re.match(pattern, line.strip())
     if not match:
         return None, None, None
-    start_time_str = match.group(1)  # e.g. "9.00"
-    end_time_str   = match.group(2)  # e.g. "12.00"
-    remainder      = match.group(3)  # e.g. "Software design PCS sub controller"
+    start_time_str = match.group(1) 
+    end_time_str   = match.group(2)
+    remainder      = match.group(3)
     return start_time_str, end_time_str, remainder
 
 
 def float_time_to_hm(time_str):
     """
-    Converts a string like '9.00' => (9, 0), '9.30' => (9, 30),
-    '13.5' => (13, 30), etc.
+    Converts '9.00' => (9, 0), '9.30' => (9, 30), '13.5' => (13, 30), etc.
     """
     val = float(time_str)
     hours = int(val)
@@ -98,13 +137,12 @@ def create_time_entry(
         "start": start_dt,
         "end": end_dt,
         "notes": notes,
-        # Optional: "task_id": ...
-        # Optional: "project_id": ...
-        # Optional: "timezone": "GMT-03:00"
+        # Optional:
+        # "task_id": 12345,
+        # "project_id": 12345,
+        # "timezone": "GMT+00:00"
     }
 
-    # If you need to specify an account/team ID:
-    # e.g. https://app.trackingtime.co/api/v4/{ACCOUNT_ID}/events/add
     if ACCOUNT_ID:
         url = f"{BASE_URL}/{ACCOUNT_ID}/events/add"
     else:
@@ -115,34 +153,31 @@ def create_time_entry(
         "Content-Type": "application/json",
     }
 
-    # Make request
     print(f"Creating entry from {start_dt} to {end_dt}, notes={notes!r}")
     r = requests.post(url, json=payload, auth=(username, password), headers=headers)
-
     if r.status_code == 200:
         resp_json = r.json()
-        status = resp_json.get("response", {}).get("status", None)
+        status = resp_json.get("response", {}).get("status")
         if status == 200:
             print("  ✓ Created successfully")
         else:
-            err_msg = resp_json.get("response", {}).get("message", "Unknown error")
-            print(f"  ✗ Error in response: {err_msg}")
+            msg = resp_json.get("response", {}).get("message", "Unknown error")
+            print(f"  ✗ Error in response: {msg}")
     else:
         print(f"  ✗ HTTP Error {r.status_code}: {r.text}")
 
 
 def process_timesheet_file(filepath, username, password):
     """
-    Reads the input file line by line, looking for:
-
-        # date ...
+    Read file lines in the format:
+        # date 290125
             timesheet
-                <project>
-                    <startTime> - <endTime> <description>
-                <project>
-                    ...
-
-    and creates one time entry per line of tasks.
+                ProjectOne
+                    9.00 - 12.00 Some description
+                    12.30 - 17.00 Another task
+                ProjectTwo
+                    9.00 - 11.00 ...
+    Create time entries for each line.
     """
     current_date = None
     in_timesheet_block = False
@@ -150,15 +185,14 @@ def process_timesheet_file(filepath, username, password):
 
     with open(filepath, "r", encoding="utf-8") as f:
         for raw_line in f:
-            line = raw_line.rstrip("\n")  # keep indentation for analysis
+            line = raw_line.rstrip("\n")  # keep indentation
             stripped = line.strip()
 
             if not stripped:
-                continue  # skip blank lines
+                continue  # skip blanks
 
-            # 1) Detect date line, e.g. "# date 310125"
+            # Detect date line
             if stripped.startswith("# date"):
-                # e.g. "# date 290125"
                 parts = stripped.split()
                 if len(parts) == 3:
                     date_str = parts[2]
@@ -169,43 +203,32 @@ def process_timesheet_file(filepath, username, password):
                 current_project = None
                 continue
 
-            # 2) Detect "timesheet" line
+            # Detect "timesheet" line
             if stripped.lower() == "timesheet":
                 in_timesheet_block = True
                 current_project = None
                 continue
 
-            # 3) If we're in the timesheet block, we either see:
-            #    - A project name line
-            #    - A task line under that project
+            # If we're in the timesheet block, interpret lines as project headings or tasks
             if in_timesheet_block and current_date:
-                # Determine indent level to see if it’s project vs. task line
                 indent = len(line) - len(line.lstrip(" "))
 
-                # If indent is around 8 (or so), assume it's a project name
+                # If indentation is moderate, treat this as a project name
                 if indent >= 8 and indent < 12:
                     current_project = stripped
                     continue
 
-                # If indent is around 12 or more, assume it's a times line
+                # If deeper indentation, treat this as a time/task line
                 if indent >= 12:
-                    # parse "9.00 - 12.00 Something"
                     start_time_str, end_time_str, description = parse_time_range(stripped)
                     if start_time_str is None:
-                        # Not a recognized times line, skip
+                        # Not a recognized time range line
                         continue
-
-                    # Build start/end datetimes
                     sh, sm = float_time_to_hm(start_time_str)
                     eh, em = float_time_to_hm(end_time_str)
-
                     start_dt = build_iso_datetime(current_date, sh, sm)
                     end_dt   = build_iso_datetime(current_date, eh, em)
-
-                    # Combine project + user text into the notes
                     notes = f"[Project: {current_project}] {description}"
-
-                    # Create the time entry in TrackingTime
                     create_time_entry(start_dt, end_dt, notes, username, password)
 
 
@@ -213,13 +236,36 @@ def process_timesheet_file(filepath, username, password):
 # MAIN
 # ---------------------------------------------------------------------------
 def main():
-    parser = argparse.ArgumentParser(description="Parse a timesheet file and create time entries in TrackingTime.")
-    parser.add_argument("timesheet_file", help="Path to the timesheet file")
-    parser.add_argument("--username", required=True, help="TrackingTime username (email)")
-    parser.add_argument("--password", required=True, help="TrackingTime password")
+    parser = argparse.ArgumentParser(
+        description="Parse a timesheet file (in the specified format) and create time entries in TrackingTime."
+    )
+    parser.add_argument(
+        "timesheet_file",
+        nargs="?",
+        help="Path to the timesheet file (optional if --list-users is used)."
+    )
+    parser.add_argument("--username", required=True, help="TrackingTime username (email).")
+    parser.add_argument("--password", required=True, help="TrackingTime password.")
+    parser.add_argument(
+        "--list-users",
+        action="store_true",
+        help="List all users in the account (only for admins/project managers)."
+    )
+
     args = parser.parse_args()
 
-    process_timesheet_file(args.timesheet_file, args.username, args.password)
+    # If user requested to list users, do that and exit
+    if args.list_users:
+        list_users(args.username, args.password)
+        return
+
+    # Otherwise, if a timesheet file is provided, process it
+    if args.timesheet_file:
+        process_timesheet_file(args.timesheet_file, args.username, args.password)
+    else:
+        # If no timesheet_file and not listing users, show usage
+        print("No timesheet file specified. Use --list-users or provide a timesheet file.")
+        parser.print_help()
 
 
 if __name__ == "__main__":
