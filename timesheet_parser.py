@@ -4,20 +4,19 @@ import argparse
 import requests
 from datetime import datetime
 
-# ---------------------------------------------------------------------------
-# CONFIGURATION (customize if needed)
-# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------
+# CONFIGURATION
+# ---------------------------------------------------------------------------------------
 BASE_URL = "https://app.trackingtime.co/api/v4"
 
-# If your account/team requires specifying an account ID in the path:
-# e.g. https://app.trackingtime.co/api/v4/<ACCOUNT_ID>/*
-# set it here (integer). Otherwise, leave as None.
-ACCOUNT_ID = None  # e.g. 12345
+# If your account/team requires specifying an account ID in the path, set it here.
+# e.g. ACCOUNT_ID = 12345 => "https://app.trackingtime.co/api/v4/12345/..."
+ACCOUNT_ID = None
 
-# The user ID that we assign timesheet entries to (your ID or a coworker's ID)
-USER_ID = 625297  
+# The user_id that will be assigned to tasks and time entries.
+USER_ID = 123456
 
-USER_AGENT = "TimesheetParser (myemail@example.com)"
+USER_AGENT = "TimesheetTaskCreator (myemail@example.com)"
 
 # ---------------------------------------------------------------------------
 # HELPER FUNCTIONS
@@ -52,7 +51,7 @@ def get_account_info(username, password):
 def parse_date(date_str):
     """
     Parses a date of the form ddmmyy or ddmmyyyy into a datetime.date object.
-    For example '290125' => 2025-01-29
+    E.g. '290125' => 2025-01-29
     """
     if len(date_str) == 6:  # ddmmyy
         day = date_str[0:2]
@@ -66,32 +65,28 @@ def parse_date(date_str):
         raise ValueError(f"Unable to parse date: {date_str}")
     return datetime(int(year), int(month), int(day)).date()
 
-
 def parse_time_range(line):
     """
-    Parse lines like:
-        9.00 - 12.00 Software design
-    Return (start_time_str, end_time_str, description) or (None, None, None)
+    Given something like '9.00 - 12.00 Software design PCS sub controller',
+    returns (start_time_str, end_time_str, task_name)
     """
     pattern = r"^\s*(\d{1,2}\.\d{1,2})\s*-\s*(\d{1,2}\.\d{1,2})\s+(.*)$"
     match = re.match(pattern, line.strip())
     if not match:
         return None, None, None
-    start_time_str = match.group(1)
-    end_time_str   = match.group(2)
-    remainder      = match.group(3)
+    start_time_str = match.group(1)  # e.g. "9.00"
+    end_time_str   = match.group(2)  # e.g. "12.00"
+    remainder      = match.group(3)  # e.g. "Software design PCS sub controller"
     return start_time_str, end_time_str, remainder
-
 
 def float_time_to_hm(time_str):
     """
-    Converts '9.00' => (9, 0), '9.30' => (9, 30), '13.5' => (13, 30), etc.
+    Converts '9.00' -> (9, 0), '9.30' -> (9, 30), '13.5' -> (13, 30), etc.
     """
     val = float(time_str)
     hours = int(val)
     minutes = int(round((val - hours) * 60))
     return hours, minutes
-
 
 def build_iso_datetime(date_obj, hours, minutes):
     """
@@ -100,26 +95,91 @@ def build_iso_datetime(date_obj, hours, minutes):
     dt = datetime(date_obj.year, date_obj.month, date_obj.day, hours, minutes, 0)
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
+# ---------------------------------------------------------------------------------------
+# TRACKINGTIME API CALLS
+# ---------------------------------------------------------------------------------------
 
-def create_time_entry(start_dt, end_dt, notes, username, password):
+def get_all_projects(username, password):
     """
-    POST to /api/v4/events/add to create a single time entry.
+    Lists all projects in the account (filter=ALL) and returns a dict
+    mapping { project_name_lowercase: project_id }
+    """
+    # Construct endpoint
+    if ACCOUNT_ID:
+        url = f"{BASE_URL}/{ACCOUNT_ID}/projects?filter=ALL"
+    else:
+        url = f"{BASE_URL}/projects?filter=ALL"
+
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Content-Type": "application/json",
+    }
+
+    resp = requests.get(url, auth=(username, password), headers=headers)
+    if resp.status_code == 200:
+        j = resp.json()
+        # j should look like {"response": {...}, "data": [ {...}, {...}, ... ]}
+        projects_list = j.get("data", [])
+        mapping = {}
+        for p in projects_list:
+            # each "p" is a project object with "id", "name", etc.
+            pid = p.get("id")
+            pname = p.get("name", "")
+            if pname:
+                mapping[pname.lower()] = pid
+        return mapping
+    else:
+        print(f"Error fetching projects: HTTP {resp.status_code} => {resp.text}")
+        return {}
+
+def post_create_task(task_name, project_id, username, password):
+    """
+    Creates a new task with the given name in the specified project.
+    Endpoint: /api/v4/tasks/add
+
+    Returns the new task's ID, or None if error.
+    """
+    if ACCOUNT_ID:
+        url = f"{BASE_URL}/{ACCOUNT_ID}/tasks/add"
+    else:
+        url = f"{BASE_URL}/tasks/add"
+
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "name": task_name,
+        "project_id": project_id,
+        "user_id": USER_ID
+    }
+
+    resp = requests.post(url, json=payload, auth=(username, password), headers=headers)
+    if resp.status_code == 200:
+        j = resp.json()
+        status = j.get("response", {}).get("status")
+        if status == 200:
+            data = j.get("data", {})
+            task_id = data.get("id")
+            print(f"    Created task '{task_name}' (ID: {task_id}) in project {project_id}")
+            return task_id
+        else:
+            msg = j.get("response", {}).get("message", "Unknown error")
+            print(f"    Error creating task '{task_name}': {msg}")
+            return None
+    else:
+        print(f"    HTTP {resp.status_code} error creating task '{task_name}': {resp.text}")
+        return None
+
+def post_create_event(start_dt, end_dt, task_id, username, password, notes=None):
+    """
+    Creates a time entry (event) for the given task_id, referencing user_id, start/end times.
+    Endpoint: /api/v4/events/add
     """
     start_obj = datetime.strptime(start_dt, "%Y-%m-%d %H:%M:%S")
     end_obj   = datetime.strptime(end_dt,   "%Y-%m-%d %H:%M:%S")
     duration_seconds = int((end_obj - start_obj).total_seconds())
-
-    payload = {
-        "duration": duration_seconds,
-        "user_id": USER_ID,
-        "start": start_dt,
-        "end": end_dt,
-        "notes": notes,
-        # Optional:
-        # "task_id": 12345,
-        # "project_id": 12345,
-        # "timezone": "GMT+00:00"
-    }
 
     if ACCOUNT_ID:
         url = f"{BASE_URL}/{ACCOUNT_ID}/events/add"
@@ -128,48 +188,70 @@ def create_time_entry(start_dt, end_dt, notes, username, password):
 
     headers = {
         "User-Agent": USER_AGENT,
-        "Content-Type": "application/json",
+        "Content-Type": "application/json"
     }
 
-    print(f"Creating entry from {start_dt} to {end_dt}, notes={notes!r}")
-    r = requests.post(url, json=payload, auth=(username, password), headers=headers)
-    if r.status_code == 200:
-        resp_json = r.json()
-        status = resp_json.get("response", {}).get("status")
-        if status == 200:
-            print("  ✓ Created successfully")
-        else:
-            msg = resp_json.get("response", {}).get("message", "Unknown error")
-            print(f"  ✗ Error in response: {msg}")
-    else:
-        print(f"  ✗ HTTP Error {r.status_code}: {r.text}")
+    payload = {
+        "task_id": task_id,
+        "user_id": USER_ID,
+        "start": start_dt,
+        "end": end_dt,
+        "duration": duration_seconds
+    }
+    if notes:
+        payload["notes"] = notes
 
+    resp = requests.post(url, json=payload, auth=(username, password), headers=headers)
+    if resp.status_code == 200:
+        j = resp.json()
+        status = j.get("response", {}).get("status")
+        if status == 200:
+            print(f"      ✓ Created event from {start_dt} to {end_dt}")
+        else:
+            msg = j.get("response", {}).get("message", "Unknown error")
+            print(f"      ✗ Error creating event: {msg}")
+    else:
+        print(f"      ✗ HTTP {resp.status_code} error: {resp.text}")
+
+# ---------------------------------------------------------------------------------------
+# MAIN TIMESHEET PARSING
+# ---------------------------------------------------------------------------------------
 
 def process_timesheet_file(filepath, username, password):
     """
     Reads a file in the format:
-        # date 290125
-            timesheet
-                MyProject
-                    9.00 - 12.00 Do some coding
-                    13.00 - 15.00 Another task
-                AnotherProject
-                    9.00 - 10.00 Something else
-    Creates time entries for each line.
+
+    # date 290125
+        timesheet
+            Centurion
+                9.00 - 12.00 Software design
+            LandCruiser
+                12.30 - 17.00 Another Task
+
+    Only adds new tasks to *existing* projects in TT that match the project name (case-insensitive).
+    If project doesn't exist, we skip it (or you could error).
     """
+    # 1. Fetch all existing projects from your account
+    print("[+] Fetching existing projects...")
+    project_map = get_all_projects(username, password)
+    # project_map = { "centurion": 123, "landcruiser": 456, ... }
+
+    # 2. We'll parse the file, find tasks, and attach them to existing projects only
     current_date = None
     in_timesheet_block = False
-    current_project = None
+    current_project_name = None
+
+    # Cache so if we create the same (project_id, task_name) multiple times in the same run, we reuse the ID
+    task_cache = {}
 
     with open(filepath, "r", encoding="utf-8") as f:
         for raw_line in f:
-            line = raw_line.rstrip("\n")  # keep indentation
+            line = raw_line.rstrip("\n")
             stripped = line.strip()
-
             if not stripped:
-                continue  # skip blanks
+                continue
 
-            # Detect date line
+            # Check for date line
             if stripped.startswith("# date"):
                 parts = stripped.split()
                 if len(parts) == 3:
@@ -178,52 +260,69 @@ def process_timesheet_file(filepath, username, password):
                 else:
                     current_date = None
                 in_timesheet_block = False
-                current_project = None
+                current_project_name = None
                 continue
 
-            # Detect "timesheet" line
+            # Check for "timesheet"
             if stripped.lower() == "timesheet":
                 in_timesheet_block = True
-                current_project = None
+                current_project_name = None
                 continue
 
-            # If we're in the timesheet block, interpret lines as project headings or tasks
+            # If in timesheet block, parse project lines or tasks
             if in_timesheet_block and current_date:
                 indent = len(line) - len(line.lstrip(" "))
 
-                # If indentation is moderate, treat this as a project name
+                # Project line
                 if 8 <= indent < 12:
-                    current_project = stripped
+                    current_project_name = stripped
                     continue
 
-                # If deeper indentation, treat this as a time/task line
+                # Task line
                 if indent >= 12:
-                    start_time_str, end_time_str, description = parse_time_range(stripped)
+                    start_time_str, end_time_str, task_desc = parse_time_range(stripped)
                     if start_time_str is None:
-                        # Not a recognized time range line
                         continue
+
+                    # Convert times
                     sh, sm = float_time_to_hm(start_time_str)
                     eh, em = float_time_to_hm(end_time_str)
+
                     start_dt = build_iso_datetime(current_date, sh, sm)
                     end_dt   = build_iso_datetime(current_date, eh, em)
-                    notes = f"[Project: {current_project}] {description}"
-                    create_time_entry(start_dt, end_dt, notes, username, password)
 
+                    # Find the matching project
+                    if not current_project_name:
+                        print(f"No project found for line: {stripped}")
+                        continue
 
-# ---------------------------------------------------------------------------
-# MAIN
-# ---------------------------------------------------------------------------
+                    proj_id = project_map.get(current_project_name.lower())
+                    if not proj_id:
+                        print(f"Project '{current_project_name}' not found in TT. Skipping this task: {task_desc}")
+                        continue
+
+                    # Create or reuse the task
+                    task_key = (proj_id, task_desc)
+                    if task_key not in task_cache:
+                        # create it
+                        task_id = post_create_task(task_desc, proj_id, username, password)
+                        if not task_id:
+                            continue  # skip if creation failed
+                        task_cache[task_key] = task_id
+                    else:
+                        task_id = task_cache[task_key]
+
+                    # Create time entry
+                    note_str = f"Auto time entry for existing project '{current_project_name}'"
+                    post_create_event(start_dt, end_dt, task_id, username, password, notes=note_str)
+
 def main():
     parser = argparse.ArgumentParser(
-        description="Parse a timesheet file (in the specified format) and/or get account info from TrackingTime."
+        description="Parse a timesheet file and create tasks/time entries ONLY for existing projects in TrackingTime."
     )
-    parser.add_argument(
-        "timesheet_file",
-        nargs="?",
-        help="Path to the timesheet file (optional if using --get-info)."
-    )
-    parser.add_argument("--username", required=True, help="TrackingTime username (email).")
-    parser.add_argument("--password", required=True, help="TrackingTime password.")
+    parser.add_argument("timesheet_file", help="Path to the timesheet file.")
+    parser.add_argument("--username", required=True, help="Your TrackingTime username (email).")
+    parser.add_argument("--password", required=True, help="Your TrackingTime password.")
     parser.add_argument(
         "--get-info",
         action="store_true",
