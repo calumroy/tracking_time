@@ -5,12 +5,13 @@ import requests
 from datetime import datetime
 
 # ---------------------------------------------------------------------------
-# CONFIGURATION (Customize as needed)
+# CONFIGURATION (customize if needed)
 # ---------------------------------------------------------------------------
 BASE_URL = "https://app.trackingtime.co/api/v4"
 
-# If your account/team requires specifying an account ID in the URL path
-# e.g. https://app.trackingtime.co/api/v4/<ACCOUNT_ID>/*, set it here:
+# If your account/team requires specifying an account ID in the path:
+# e.g. https://app.trackingtime.co/api/v4/<ACCOUNT_ID>/*
+# set it here (integer). Otherwise, leave as None.
 ACCOUNT_ID = None  # e.g. 12345
 
 # The user ID that we assign timesheet entries to (your ID or a coworker's ID)
@@ -22,52 +23,37 @@ USER_AGENT = "TimesheetParser (myemail@example.com)"
 # HELPER FUNCTIONS
 # ---------------------------------------------------------------------------
 
-def list_users(username, password):
+def get_account_info(username, password):
     """
-    Lists all users in the current account via GET /api/v4/users.
-    Only admins / project managers can do this.
+    Calls GET /api/v4/users?filter=ALL to retrieve info about all users in the account.
+    Requires admin or project manager privileges.
+    Prints the raw JSON response.
     """
-    # If you need an account ID in the path, adjust here
-    # For example: f"{BASE_URL}/{ACCOUNT_ID}/users"
     if ACCOUNT_ID:
         url = f"{BASE_URL}/{ACCOUNT_ID}/users?filter=ALL"
     else:
-        url = f"{BASE_URL}/users?filter=ALL"  # or filter=ACTIVE, etc.
+        url = f"{BASE_URL}/users?filter=ALL"
 
     headers = {
         "User-Agent": USER_AGENT,
-        "Content-Type": "application/json",
+        "Content-Type": "application/json"
     }
 
-    print("[+] Fetching list of users...")
+    print("[+] Retrieving account info (list of all users)...\n")
     resp = requests.get(url, auth=(username, password), headers=headers)
 
     if resp.status_code == 200:
-        data = resp.json()
-        # Should look like: {"response": {...}, "data": [ {..user1..}, {..user2..}, ... ]}
-        if "data" in data and isinstance(data["data"], list):
-            users_list = data["data"]
-            print(f"\nFound {len(users_list)} users:\n")
-            for user in users_list:
-                uid = user.get("id", "N/A")
-                name = user.get("name", "")
-                surname = user.get("surname", "")
-                email = user.get("email", "")
-                role = user.get("role", "")
-                print(f"  ID: {uid:<6} | {name} {surname} | {email} | Role: {role}")
-            print("\nDone.")
-        else:
-            print("[-] Could not parse user list. Check response format.")
+        # Print the raw JSON
+        print(resp.text)
     else:
         print(f"[-] HTTP Error {resp.status_code}: {resp.text}")
+
 
 def parse_date(date_str):
     """
     Parses a date of the form ddmmyy or ddmmyyyy into a datetime.date object.
     For example '290125' => 2025-01-29
     """
-    # You can adjust if your input is ddmmyyyy, etc.
-    # Here, we assume '290125' => dd mm yy => 29 01 25 => 2025-01-29
     if len(date_str) == 6:  # ddmmyy
         day = date_str[0:2]
         month = date_str[2:4]
@@ -84,14 +70,14 @@ def parse_date(date_str):
 def parse_time_range(line):
     """
     Parse lines like:
-        9.00 - 12.00 Software design PCS sub controller
+        9.00 - 12.00 Software design
     Return (start_time_str, end_time_str, description) or (None, None, None)
     """
     pattern = r"^\s*(\d{1,2}\.\d{1,2})\s*-\s*(\d{1,2}\.\d{1,2})\s+(.*)$"
     match = re.match(pattern, line.strip())
     if not match:
         return None, None, None
-    start_time_str = match.group(1) 
+    start_time_str = match.group(1)
     end_time_str   = match.group(2)
     remainder      = match.group(3)
     return start_time_str, end_time_str, remainder
@@ -109,28 +95,20 @@ def float_time_to_hm(time_str):
 
 def build_iso_datetime(date_obj, hours, minutes):
     """
-    Builds a string 'YYYY-mm-dd HH:MM:SS' from date + hour + minute.
+    Return 'YYYY-MM-DD HH:MM:SS'
     """
     dt = datetime(date_obj.year, date_obj.month, date_obj.day, hours, minutes, 0)
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def create_time_entry(
-    start_dt,
-    end_dt,
-    notes,
-    username,
-    password
-):
+def create_time_entry(start_dt, end_dt, notes, username, password):
     """
     POST to /api/v4/events/add to create a single time entry.
     """
-    # Calculate duration in seconds
     start_obj = datetime.strptime(start_dt, "%Y-%m-%d %H:%M:%S")
     end_obj   = datetime.strptime(end_dt,   "%Y-%m-%d %H:%M:%S")
     duration_seconds = int((end_obj - start_obj).total_seconds())
 
-    # Prepare the JSON payload
     payload = {
         "duration": duration_seconds,
         "user_id": USER_ID,
@@ -169,15 +147,15 @@ def create_time_entry(
 
 def process_timesheet_file(filepath, username, password):
     """
-    Read file lines in the format:
+    Reads a file in the format:
         # date 290125
             timesheet
-                ProjectOne
-                    9.00 - 12.00 Some description
-                    12.30 - 17.00 Another task
-                ProjectTwo
-                    9.00 - 11.00 ...
-    Create time entries for each line.
+                MyProject
+                    9.00 - 12.00 Do some coding
+                    13.00 - 15.00 Another task
+                AnotherProject
+                    9.00 - 10.00 Something else
+    Creates time entries for each line.
     """
     current_date = None
     in_timesheet_block = False
@@ -214,7 +192,7 @@ def process_timesheet_file(filepath, username, password):
                 indent = len(line) - len(line.lstrip(" "))
 
                 # If indentation is moderate, treat this as a project name
-                if indent >= 8 and indent < 12:
+                if 8 <= indent < 12:
                     current_project = stripped
                     continue
 
@@ -237,34 +215,33 @@ def process_timesheet_file(filepath, username, password):
 # ---------------------------------------------------------------------------
 def main():
     parser = argparse.ArgumentParser(
-        description="Parse a timesheet file (in the specified format) and create time entries in TrackingTime."
+        description="Parse a timesheet file (in the specified format) and/or get account info from TrackingTime."
     )
     parser.add_argument(
         "timesheet_file",
         nargs="?",
-        help="Path to the timesheet file (optional if --list-users is used)."
+        help="Path to the timesheet file (optional if using --get-info)."
     )
     parser.add_argument("--username", required=True, help="TrackingTime username (email).")
     parser.add_argument("--password", required=True, help="TrackingTime password.")
     parser.add_argument(
-        "--list-users",
+        "--get-info",
         action="store_true",
-        help="List all users in the account (only for admins/project managers)."
+        help="Print raw JSON of all users in the account (GET /users?filter=ALL)."
     )
 
     args = parser.parse_args()
 
-    # If user requested to list users, do that and exit
-    if args.list_users:
-        list_users(args.username, args.password)
+    # If user requested to get account info, do that and exit
+    if args.get_info:
+        get_account_info(args.username, args.password)
         return
 
     # Otherwise, if a timesheet file is provided, process it
     if args.timesheet_file:
         process_timesheet_file(args.timesheet_file, args.username, args.password)
     else:
-        # If no timesheet_file and not listing users, show usage
-        print("No timesheet file specified. Use --list-users or provide a timesheet file.")
+        print("No timesheet file specified, and --get-info not used. Nothing to do.")
         parser.print_help()
 
 
