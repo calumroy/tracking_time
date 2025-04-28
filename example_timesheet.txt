@@ -1,11 +1,11 @@
-# date 290125
+# date 140425
     timesheet
         Centurion
             9.00 - 12.00 Software design PCS sub controller
-        LandCruiser
-            12.30 - 17.00 Software design PCS sub controller
+        Batterang
+            12.30 - 17.00 Software Testing TI AM263 embedded platform.
 
-# date 310125
+# date 150425
     timesheet
         Centurion
             8.00 - 11.00 Control System Wiring at Site
