@@ -16,6 +16,20 @@
             ],
             "console": "integratedTerminal",
             "justMyCode": true
+        },
+        {
+            "name": "Debug Timesheet Get Tasks",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/timesheet_parser.py",
+            "args": [
+                "--get-project-tasks",
+                "--project-id", "2349452",
+                "--username", "calum@switchbatteries.com",
+                "--password", "Switchon_timetracker"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
         }
     ]
 }

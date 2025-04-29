@@ -384,6 +384,70 @@ def get_project_time_entries(username, password, project_id, from_date=None, to_
         print(f"  [{eid}] {start} -> {end} | {hh:02d}:{mm:02d} | User: {user} | Task: {task}")
 
 # ---------------------------------------------------------------------------------------
+# FETCH PROJECT TASKS
+# ---------------------------------------------------------------------------------------
+
+def get_project_tasks(username, password, project_id, include_archived=False, page_size=500, account_id=None):
+    """Fetch all tasks for a specific project using pagination."""
+    account_id = account_id or DEFAULT_ACCOUNT_ID
+    path = f"{account_id}/tasks/paginated" if account_id else "tasks/paginated"
+    url = f"{BASE_URL}/{path}"
+    
+    # Define filter based on include_archived parameter
+    task_filter = "ALL" if include_archived else "ACTIVE"
+    
+    headers = {"User-Agent": USER_AGENT, "Content-Type": "application/json"}
+    print(f"[+] Fetching tasks and filtering for project {project_id}...")
+    
+    project_tasks = []
+    page = 0
+    total_tasks_processed = 0
+    
+    while True:
+        params = {
+            "filter": task_filter,
+            "page": page,
+            "page_size": page_size
+        }
+        
+        r = requests.get(url, params=params, auth=(username, password), headers=headers)
+        if r.status_code != 200:
+            print(f"[-] HTTP {r.status_code} error retrieving tasks: {r.text}")
+            break
+            
+        data = r.json()
+        tasks = data.get("data", [])
+        
+        if not tasks:
+            break
+            
+        # Filter tasks for the requested project_id
+        matching_tasks = [task for task in tasks if str(task.get("project_id")) == str(project_id)]
+        project_tasks.extend(matching_tasks)
+        
+        total_tasks_processed += len(tasks)
+        print(f"  Processed page {page}: Found {len(matching_tasks)} matching tasks from {len(tasks)} total")
+        
+        # If we received fewer tasks than page_size, we've reached the end
+        if len(tasks) < page_size:
+            break
+            
+        page += 1
+    
+    print(f"[+] Retrieved {len(project_tasks)} tasks for project {project_id} (processed {total_tasks_processed} total tasks):\n")
+    
+    for task in project_tasks:
+        task_id = task.get("id")
+        name = task.get("name")
+        status = "Archived" if task.get("is_archived") else "Active"
+        estimated_time = task.get("loc_estimated_time", "00:00")
+        worked_hours = task.get("loc_worked_hours", "00:00") 
+        created_at = task.get("created_at")
+        print(f"  [{task_id}] {name} | Status: {status} | Est: {estimated_time} | Worked: {worked_hours} | Created: {created_at}")
+    
+    return project_tasks
+
+# ---------------------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------------------
 
@@ -403,7 +467,9 @@ def main():
     p.add_argument("--get-time-tracking", action="store_true", help="List all time entries for USER_ID")
     p.add_argument("--get-time-count", action="store_true", help="Get count of time entries in a date range")
     p.add_argument("--get-project-events", action="store_true", help="List all time entries for a specific project")
+    p.add_argument("--get-project-tasks", action="store_true", help="List all tasks for a specific project")
     p.add_argument("--project-id", type=int, help="Project ID for project-specific queries")
+    p.add_argument("--include-archived", action="store_true", help="Include archived tasks when listing project tasks")
     p.add_argument("--count-filter", choices=["USER", "COMPANY"], default="USER", 
                   help="Filter type for time count: user or company-wide (default: %(default)s)")
     p.add_argument("--from-date", metavar="YYYY-MM-DD", help="Start date for time queries")
@@ -430,6 +496,13 @@ def main():
             return
         get_project_time_entries(args.username, args.password, args.project_id, args.from_date, args.to_date,
                               account_id=args.account_id)
+        return
+    if args.get_project_tasks:
+        if not args.project_id:
+            print("[-] Error: --project-id is required when using --get-project-tasks")
+            return
+        get_project_tasks(args.username, args.password, args.project_id, args.include_archived,
+                        account_id=args.account_id)
         return
     if args.get_time_count:
         filter_id = args.user_id if args.count_filter == "USER" else None
