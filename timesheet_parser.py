@@ -291,6 +291,9 @@ def get_teams(username, password):
 def process_timesheet_file(filepath, username, password, user_id, account_id=None):
     print("[+] Fetching existing projects...")
     project_map = get_all_projects(username, password, account_id)
+    
+    # Dictionary to cache project tasks
+    project_tasks_cache = {}
 
     current_date = None
     in_block = False
@@ -320,6 +323,13 @@ def process_timesheet_file(filepath, username, password, user_id, account_id=Non
                 if 8 <= indent < 12:
                     current_project = stripped
                     current_task = None
+                    
+                    # Fetch tasks for this project if not already cached
+                    proj_id = project_map.get(current_project.lower())
+                    if proj_id and proj_id not in project_tasks_cache:
+                        print(f"[+] Fetching tasks for project '{current_project}' (ID: {proj_id})...")
+                        tasks = get_project_tasks(username, password, proj_id, account_id=account_id)
+                        project_tasks_cache[proj_id] = tasks
                     continue
                     
                 # Task line (indentation level 2)
@@ -342,17 +352,24 @@ def process_timesheet_file(filepath, username, password, user_id, account_id=Non
                     if not proj_id:
                         print(f"Project '{current_project}' not found. Skipping entry for task '{current_task}': '{desc}'")
                         continue
-                        
-                    # Use the task name from the timesheet instead of the description as the task name
-                    task_name = current_task
-                    key = (proj_id, task_name)
                     
-                    # Get or create the task
-                    task_id = task_cache.get(key) or post_create_task(task_name, proj_id, username, password, user_id, account_id, current_project)
+                    # Try to find a matching task in the project's tasks
+                    task_id = None
+                    if proj_id in project_tasks_cache:
+                        # Look for exact or similar match
+                        for task in project_tasks_cache[proj_id]:
+                            task_name = task.get("name", "")
+                            # Check if task name contains our current task or vice versa
+                            if (current_task.lower() in task_name.lower() or 
+                                task_name.lower() in current_task.lower() or
+                                desc.lower() in task_name.lower()):
+                                task_id = task.get("id")
+                                print(f"[+] Matched task '{current_task}' with existing task '{task_name}' (ID: {task_id})")
+                                break
+                    
                     if not task_id:
+                        print(f"[-] No matching task found for '{current_task}' in project '{current_project}'. Skipping.")
                         continue
-                        
-                    task_cache[key] = task_id
                     
                     # Create the time entry with the description as notes
                     notes = f"{desc} (Auto entry for task '{current_task}' in project '{current_project}')"

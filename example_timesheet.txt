@@ -2,7 +2,7 @@
     timesheet
         Centurion Truck Charging Depot
             Subcontrollers
-                9.00 - 12.00 PCS sub controller
+                9.00 - 11.00 PCS sub controller
             Project data research
                 11.00 - 12.00 Reading component documentation
         Batterang
