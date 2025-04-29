@@ -294,6 +294,8 @@ def process_timesheet_file(filepath, username, password, user_id, account_id=Non
     
     # Dictionary to cache project tasks
     project_tasks_cache = {}
+    # Dictionary to cache project time entries - now keyed by (proj_id, date_str)
+    project_entries_cache = {}
 
     current_date = None
     in_block = False
@@ -326,10 +328,25 @@ def process_timesheet_file(filepath, username, password, user_id, account_id=Non
                     
                     # Fetch tasks for this project if not already cached
                     proj_id = project_map.get(current_project.lower())
-                    if proj_id and proj_id not in project_tasks_cache:
-                        print(f"[+] Fetching tasks for project '{current_project}' (ID: {proj_id})...")
-                        tasks = get_project_tasks(username, password, proj_id, account_id=account_id)
-                        project_tasks_cache[proj_id] = tasks
+                    if proj_id:
+                        # Always fetch tasks if they're not cached
+                        if proj_id not in project_tasks_cache:
+                            print(f"[+] Fetching tasks for project '{current_project}' (ID: {proj_id})...")
+                            tasks = get_project_tasks(username, password, proj_id, account_id=account_id)
+                            project_tasks_cache[proj_id] = tasks
+                        
+                        # Fetch time entries for this project+date combination
+                        date_str = current_date.strftime("%Y-%m-%d")
+                        cache_key = (proj_id, date_str)
+                        
+                        if cache_key not in project_entries_cache:
+                            print(f"[+] Fetching existing time entries for project '{current_project}' on {date_str}...")
+                            entries = get_project_time_entries(
+                                username, password, proj_id, 
+                                from_date=date_str, to_date=date_str,
+                                user_id=user_id, account_id=account_id
+                            )
+                            project_entries_cache[cache_key] = entries
                     continue
                     
                 # Task line (indentation level 2)
@@ -355,6 +372,7 @@ def process_timesheet_file(filepath, username, password, user_id, account_id=Non
                     
                     # Try to find a matching task in the project's tasks
                     task_id = None
+                    task_name_match = None
                     if proj_id in project_tasks_cache:
                         # Look for exact or similar match
                         for task in project_tasks_cache[proj_id]:
@@ -364,6 +382,7 @@ def process_timesheet_file(filepath, username, password, user_id, account_id=Non
                                 task_name.lower() in current_task.lower() or
                                 desc.lower() in task_name.lower()):
                                 task_id = task.get("id")
+                                task_name_match = task_name
                                 print(f"[+] Matched task '{current_task}' with existing task '{task_name}' (ID: {task_id})")
                                 break
                     
@@ -371,9 +390,39 @@ def process_timesheet_file(filepath, username, password, user_id, account_id=Non
                         print(f"[-] No matching task found for '{current_task}' in project '{current_project}'. Skipping.")
                         continue
                     
-                    # Create the time entry with the description as notes
-                    notes = f"{desc} (Auto entry for task '{current_task}' in project '{current_project}')"
+                    # Check if this event already exists - using the date-specific cache key
+                    date_str = current_date.strftime("%Y-%m-%d")
+                    cache_key = (proj_id, date_str)
+                    duplicate_found = False
+                    
+                    if cache_key in project_entries_cache:
+                        for entry in project_entries_cache[cache_key]:
+                            # Get task name for comparison
+                            entry_task_name = entry.get("t", "")
+                            
+                            # Compare start time, end time, and task name
+                            if (entry.get("s") == start_dt and 
+                                entry.get("e") == end_dt and 
+                                entry_task_name.lower() == task_name_match.lower()):
+                                print(f"[-] ERROR: Duplicate entry found - {start_dt} to {end_dt} for task '{current_task}'. Skipping.")
+                                duplicate_found = True
+                                break
+                    
+                    if duplicate_found:
+                        continue
+                    
+                    # Create the time entry
+                    notes = f"{desc} ..."
                     post_create_event(start_dt, end_dt, task_id, username, password, user_id, notes=notes, account_id=account_id)
+                    
+                    # Add to our cache to prevent duplicates in the same run
+                    if cache_key in project_entries_cache:
+                        project_entries_cache[cache_key].append({
+                            "s": start_dt,
+                            "e": end_dt,
+                            "t": task_name_match,
+                            "uid": user_id
+                        })
 
 # ---------------------------------------------------------------------------------------
 # FETCH PROJECT TIME ENTRIES 
