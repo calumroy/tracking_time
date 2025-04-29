@@ -1,0 +1,168 @@
+# date 010425
+    timesheet
+        Centurion Truck Charging Depot
+            Hardware Installation at Site
+                9.00 - 12.00 Deliver controls gear and investigate PV3 limiting issue
+        UWA Dyno
+            Engineering - software
+                12.30 - 15.00 Set up local supply-rack-control development environment
+        Batterang
+            Software Testing TI AM263 embedded platform.
+                15.00 - 17.30 Containerised Code Composer installation and troubleshooting
+
+# date 020425
+    timesheet
+        Batterang
+            Software Testing TI AM263 embedded platform.
+                9.00 - 17.30 Install Code Composer, fix container DISPLAY/USB issues (30 min lunch)
+
+# date 030425
+    timesheet
+        Centurion Truck Charging Depot
+            Project Meetings (internal & external)
+                9.00 - 12.00 Plan fibre termination strategy for south site and review cable counts
+        Batterang
+            Software Testing TI AM263 embedded platform.
+                12.30 - 17.30 JTAG/debug investigations on AM263P4 control-card in CCS
+
+# date 040425
+    timesheet
+        Centurion Truck Charging Depot
+            Hardware Installation at Site
+                9.00 - 12.00 Deliver ADAM I/O modules and confirm south-site fibre requirement
+        Hybrid Haul Truck
+            Meetings - Client
+                12.30 - 14.30 Discussion with Richard Pearman on CAT integration & certification support
+        Batterang
+            Software Testing TI AM263 embedded platform.
+                14.30 - 17.30 Set up VirtualBox USB-pass-through for TI tools testing
+# date 070425
+    timesheet
+        Hybrid Haul Truck
+            Engineering - Control Systems Development
+                9.00 - 17.30 Review drivetrain control concepts and CAT torque-converter constraints
+
+# date 080425
+    timesheet
+        Batterang
+            Software Testing TI AM263 embedded platform.
+                9.00 - 17.30 Diagnose XDS110 connection errors inside Podman container (30 min lunch)
+
+# date 090425
+    timesheet
+        Centurion Truck Charging Depot
+            Parts procurement
+                9.00 - 12.00 Assess need for additional ADAM outputs for CB close function
+        Batterang
+            Software Testing TI AM263 embedded platform.
+                12.30 - 17.30 Validate CCS debugger startup requirements in privileged container
+
+# date 100425
+    timesheet
+        Centurion Truck Charging Depot
+            Project Meetings (internal & external)
+                9.00 - 11.00 Schedule EV-charger tests and coordinate site access
+        Overhead
+            Office Setup
+                11.00 - 12.00 Move equipment to new workspace
+        Batterang
+            Software Testing TI AM263 embedded platform.
+                12.30 - 17.30 Troubleshoot AM263 USB access & lab setup
+
+# date 110425
+    timesheet
+        Centurion Truck Charging Depot
+            Hardware Installation at Site
+                9.00 - 11.00 Deliver Modbus connectors to Nu-phase & collect CRRC BMS logs
+        Batterang
+            Engineering - Documentation
+                11.00 - 17.30 Write controls-hardware decision summary for management (30 min lunch)
+
+# date 130425
+    timesheet
+        Overhead
+            IT Support
+                9.00 - 17.30 Create Autodesk Fusion 360 account and secure backup codes
+
+# date 140425
+    timesheet
+        Centurion Truck Charging Depot
+            Subcontrollers
+                9.00 - 11.00 Enable Tailscale exit-node & debug PCS-2 comms
+            Project data research
+                11.00 - 12.00 Analyse water-ingress events & PV performance logs
+        SRG Sandvik Rig
+            Meeting / Project Planning
+                12.30 - 17.30 Prepare drill-rig availability plan and Instagantt import
+
+# date 150425
+    timesheet
+        Centurion Truck Charging Depot
+            Hardware Installation at Site
+                9.00 - 11.00 Investigate PV limit oscillations and PCS-2 fault 7300
+        Batterang
+            Software Testing TI AM263 embedded platform.
+                12.30 - 17.30 Assess CCS vs container viability; begin classic-CAN example port
+
+# date 160425
+    timesheet
+        Centurion Truck Charging Depot
+            Project Meetings (internal & external)
+                9.00 - 12.00 Document completed north-site works and prepare client update
+        Batterang
+            Software Testing TI AM263 embedded platform.
+                12.30 - 17.30 Setup socket-CAN loopback and validate CAN RX/TX on AM263P4
+
+# date 170425
+    timesheet
+        Batterang
+            Software Testing TI AM263 embedded platform.
+                9.00 - 15.00 MCAN4 pin-mux testing and CAN-FD/Classic migrations
+        Overhead
+            Office cleanup
+                15.00 - 17.30 Pack electronics and archive equipment during HQ relocation
+
+# date 180425
+    timesheet
+        Centurion Truck Charging Depot
+            Hardware Installation at Site
+                9.00 - 17.30 On-site OCPP testing with Setec charger & Volvo EV (30 min lunch)
+
+# date 220425
+    timesheet
+        UWA Dyno
+            Engineering - Build/Commissioning
+                9.00 - 11.00 Assist setup of small dyno rig and verify instrumentation
+        Hybrid Haul Truck
+            Meetings - Client
+                11.00 - 15.30 Complete Perenti induction planning for CAT demo
+        Centurion Truck Charging Depot
+            Project Meetings (internal & external)
+                16.30 - 17.30 Plan south-site EV-charger integration and network tests
+
+# date 230425
+    timesheet
+        Hybrid Haul Truck
+            Engineering - Research/Planning/Documentation
+                9.00 - 17.30 Compile CAT785 sensor interface questions & ECM signal mapping
+
+# date 280425
+    timesheet
+        Centurion Truck Charging Depot
+            Subcontrollers
+                9.00 - 12.00 Merge EV-charger control code and coordinate Friday test
+        Batterang
+            Software Testing TI AM263 embedded platform.
+                12.30 - 17.30 Resolve CAN transceiver enable; send/receive classic-CAN frames
+
+# date 290425
+    timesheet
+        Centurion Truck Charging Depot
+            Project Meetings (internal & external)
+                9.00 - 10.30 Discuss south-site CB updates with Nu-phase
+        Overhead
+            Timesheet Automation
+                10.30 - 12.00 Develop Python script for diary-to-TrackingTime import
+        Batterang
+            Software Testing TI AM263 embedded platform.
+                12.30 - 17.30 Build SDK examples outside workspace and test clang toolchain
