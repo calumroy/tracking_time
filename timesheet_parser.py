@@ -41,9 +41,9 @@ def get_account_info(username, password, account_id=None):
 
 
 def get_all_projects_raw(username, password, account_id=None):
-    """GET /projects/ids?filter=ALL — list projects (raw)"""
+    """GET /projects?filter=ALL — list projects (raw)"""
     account_id = account_id or DEFAULT_ACCOUNT_ID
-    path = f"{account_id}/projects/ids" if account_id else "projects"
+    path = f"{account_id}/projects" if account_id else "projects"
     url = f"{BASE_URL}/{path}?filter=ALL"
     headers = {"User-Agent": USER_AGENT, "Content-Type": "application/json"}
 
@@ -55,7 +55,6 @@ def get_all_projects_raw(username, password, account_id=None):
         return
 
     data = r.json()
-    print(data)
     if "data" in data and isinstance(data["data"], list):
         projects = data["data"]
         print(f"Found {len(projects)} projects:\n")
@@ -117,7 +116,7 @@ def get_all_projects(username, password, account_id=None):
         print(f"    ID: {p.get('id')}, Name: {p.get('name')}")
     return {p.get("name", "").lower().strip(): p.get("id") for p in projects_list if p.get("name")}
 
-def post_create_task(task_name, project_id, username, password, user_id, account_id=None):
+def post_create_task(task_name, project_id, username, password, user_id, account_id=None, project_name=None):
     account_id = account_id or DEFAULT_ACCOUNT_ID
     path = f"{account_id}/tasks/add" if account_id else "tasks/add"
     url = f"{BASE_URL}/{path}"
@@ -135,7 +134,10 @@ def post_create_task(task_name, project_id, username, password, user_id, account
         return None
 
     task_id = j.get("data", {}).get("id")
-    print(f"    Created task '{task_name}' (ID: {task_id}) in project {project_id}")
+    if project_name:
+        print(f"    Created task '{task_name}' (ID: {task_id}) in project {project_id} ('{project_name}')")
+    else:
+        print(f"    Created task '{task_name}' (ID: {task_id}) in project {project_id}")
     return task_id
 
 def post_create_event(start_dt, end_dt, task_id, username, password, user_id, notes=None, account_id=None):
@@ -324,12 +326,62 @@ def process_timesheet_file(filepath, username, password, user_id, account_id=Non
                         print(f"Project '{current_project}' not found. Skipping task '{desc}'")
                         continue
                     key = (proj_id, desc)
-                    task_id = task_cache.get(key) or post_create_task(desc, proj_id, username, password, user_id, account_id)
+                    task_id = task_cache.get(key) or post_create_task(desc, proj_id, username, password, user_id, account_id, current_project)
                     if not task_id:
                         continue
                     task_cache[key] = task_id
                     post_create_event(start_dt, end_dt, task_id, username, password, user_id,
                                      notes=f"Auto entry for project '{current_project}'", account_id=account_id)
+
+# ---------------------------------------------------------------------------------------
+# FETCH PROJECT TIME ENTRIES 
+# ---------------------------------------------------------------------------------------
+
+def get_project_time_entries(username, password, project_id, from_date=None, to_date=None, page_size=20000, account_id=None):
+    """Fetch all time entries for a specific project between from_date and to_date (inclusive)."""
+    account_id = account_id or DEFAULT_ACCOUNT_ID
+    path = f"{account_id}/events/min" if account_id else "events/min"
+    url = f"{BASE_URL}/{path}"
+
+    # If dates not given, default to a very wide window (Jan 1 2000 → today)
+    if not from_date:
+        from_date = "2000-01-01"
+    if not to_date:
+        to_date = date.today().strftime("%Y-%m-%d")
+
+    params = {
+        "filter": "PROJECT",
+        "id": project_id,
+        "from": from_date,
+        "to": to_date,
+        "order": "asc",
+        "page_size": page_size,
+    }
+
+    headers = {"User-Agent": USER_AGENT, "Content-Type": "application/json"}
+    print(f"[+] Fetching time entries for project {project_id} from {from_date} to {to_date} ...")
+
+    all_entries, page = [], 0
+    while True:
+        params["page"] = page
+        r = requests.get(url, params=params, auth=(username, password), headers=headers)
+        if r.status_code != 200:
+            print(f"[-] HTTP {r.status_code} error retrieving entries: {r.text}")
+            break
+        page_data = r.json().get("data", [])
+        if not page_data:
+            break
+        all_entries.extend(page_data)
+        if len(page_data) < page_size:
+            break
+        page += 1
+
+    print(f"[+] Retrieved {len(all_entries)} entries for project {project_id}:\n")
+    for ev in all_entries:
+        eid, start, end, dur = ev.get("id"), ev.get("s"), ev.get("e"), ev.get("d", 0)
+        user, task = ev.get("u"), ev.get("t")
+        hh, mm = divmod(dur // 60, 60)
+        print(f"  [{eid}] {start} -> {end} | {hh:02d}:{mm:02d} | User: {user} | Task: {task}")
 
 # ---------------------------------------------------------------------------------------
 # CLI
@@ -350,6 +402,8 @@ def main():
     p.add_argument("--get-teams", action="store_true", help="List all teams/accounts")
     p.add_argument("--get-time-tracking", action="store_true", help="List all time entries for USER_ID")
     p.add_argument("--get-time-count", action="store_true", help="Get count of time entries in a date range")
+    p.add_argument("--get-project-events", action="store_true", help="List all time entries for a specific project")
+    p.add_argument("--project-id", type=int, help="Project ID for project-specific queries")
     p.add_argument("--count-filter", choices=["USER", "COMPANY"], default="USER", 
                   help="Filter type for time count: user or company-wide (default: %(default)s)")
     p.add_argument("--from-date", metavar="YYYY-MM-DD", help="Start date for time queries")
@@ -369,6 +423,13 @@ def main():
     if args.get_time_tracking:
         get_user_time_entries(args.username, args.password, args.from_date, args.to_date, 
                             user_id=args.user_id, account_id=args.account_id)
+        return
+    if args.get_project_events:
+        if not args.project_id:
+            print("[-] Error: --project-id is required when using --get-project-events")
+            return
+        get_project_time_entries(args.username, args.password, args.project_id, args.from_date, args.to_date,
+                              account_id=args.account_id)
         return
     if args.get_time_count:
         filter_id = args.user_id if args.count_filter == "USER" else None
