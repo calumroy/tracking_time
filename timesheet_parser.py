@@ -11,7 +11,7 @@ BASE_URL = "https://app.trackingtime.co/api/v4"
 
 # If your account/team requires specifying an account ID in the path:
 # e.g. https://app.trackingtime.co/api/v4/<ACCOUNT_ID>/*
-ACCOUNT_ID = 451010  # e.g. 12345
+DEFAULT_ACCOUNT_ID = 451010  # e.g. 12345
 
 # The user ID for created tasks/time entries. Typically your own user or a coworker.
 DEFAULT_USER_ID = 625297
@@ -26,9 +26,10 @@ task_cache = {}
 # API CALLS (USERS / PROJECTS)
 # ---------------------------------------------------------------------------
 
-def get_account_info(username, password):
+def get_account_info(username, password, account_id=None):
     """GET /users?filter=ALL — list all users"""
-    path = f"{ACCOUNT_ID}/users" if ACCOUNT_ID else "users"
+    account_id = account_id or DEFAULT_ACCOUNT_ID
+    path = f"{account_id}/users" if account_id else "users"
     url = f"{BASE_URL}/{path}?filter=ALL"
     headers = {"User-Agent": USER_AGENT, "Content-Type": "application/json"}
     print("[+] Retrieving account info (all users)...\n")
@@ -39,9 +40,10 @@ def get_account_info(username, password):
         print(f"[-] HTTP {r.status_code} Error: {r.text}")
 
 
-def get_all_projects_raw(username, password):
+def get_all_projects_raw(username, password, account_id=None):
     """GET /projects/ids?filter=ALL — list projects (raw)"""
-    path = f"{ACCOUNT_ID}/projects/ids" if ACCOUNT_ID else "projects"
+    account_id = account_id or DEFAULT_ACCOUNT_ID
+    path = f"{account_id}/projects/ids" if account_id else "projects"
     url = f"{BASE_URL}/{path}?filter=ALL"
     headers = {"User-Agent": USER_AGENT, "Content-Type": "application/json"}
 
@@ -97,9 +99,10 @@ def build_iso_datetime(date_obj, h, m):
 # TRACKINGTIME HELPERS (PROJECTS / TASKS / EVENTS)
 # ---------------------------------------------------------------------------------------
 
-def get_all_projects(username, password):
+def get_all_projects(username, password, account_id=None):
     """Return {project_name_lower: project_id} dict plus print summary."""
-    path = f"{ACCOUNT_ID}/projects" if ACCOUNT_ID else "projects"
+    account_id = account_id or DEFAULT_ACCOUNT_ID
+    path = f"{account_id}/projects" if account_id else "projects"
     url = f"{BASE_URL}/{path}?filter=ALL"
     headers = {"User-Agent": USER_AGENT, "Content-Type": "application/json"}
 
@@ -112,13 +115,14 @@ def get_all_projects(username, password):
     print(f"[+] Found {len(projects_list)} existing projects:")
     for p in projects_list:
         print(f"    ID: {p.get('id')}, Name: {p.get('name')}")
-    return {p.get("name", "").lower(): p.get("id") for p in projects_list if p.get("name")}
+    return {p.get("name", "").lower().strip(): p.get("id") for p in projects_list if p.get("name")}
 
-def post_create_task(task_name, project_id, username, password, user_id):
-    path = f"{ACCOUNT_ID}/tasks/add" if ACCOUNT_ID else "tasks/add"
+def post_create_task(task_name, project_id, username, password, user_id, account_id=None):
+    account_id = account_id or DEFAULT_ACCOUNT_ID
+    path = f"{account_id}/tasks/add" if account_id else "tasks/add"
     url = f"{BASE_URL}/{path}"
     headers = {"User-Agent": USER_AGENT, "Content-Type": "application/json"}
-    payload = {"name": task_name, "project_id": project_id, "user_id": user_id}
+    payload = {"name": task_name, "project_id": str(project_id), "user_id": str(user_id)}
 
     r = requests.post(url, json=payload, auth=(username, password), headers=headers)
     if r.status_code != 200:
@@ -134,13 +138,14 @@ def post_create_task(task_name, project_id, username, password, user_id):
     print(f"    Created task '{task_name}' (ID: {task_id}) in project {project_id}")
     return task_id
 
-def post_create_event(start_dt, end_dt, task_id, username, password, user_id, notes=None):
-    path = f"{ACCOUNT_ID}/events/add" if ACCOUNT_ID else "events/add"
+def post_create_event(start_dt, end_dt, task_id, username, password, user_id, notes=None, account_id=None):
+    account_id = account_id or DEFAULT_ACCOUNT_ID
+    path = f"{account_id}/events/add" if account_id else "events/add"
     url = f"{BASE_URL}/{path}"
     headers = {"User-Agent": USER_AGENT, "Content-Type": "application/json"}
 
     dur = int((datetime.strptime(end_dt, "%Y-%m-%d %H:%M:%S") - datetime.strptime(start_dt, "%Y-%m-%d %H:%M:%S")).total_seconds())
-    payload = {"task_id": task_id, "user_id": user_id, "start": start_dt, "end": end_dt, "duration": dur}
+    payload = {"task_id": str(task_id), "user_id": str(user_id), "start": start_dt, "end": end_dt, "duration": dur}
     if notes:
         payload["notes"] = notes
 
@@ -157,9 +162,10 @@ def post_create_event(start_dt, end_dt, task_id, username, password, user_id, no
 # FETCH TIME ENTRIES (NEW FEATURE)
 # ---------------------------------------------------------------------------------------
 
-def get_user_time_entries(username, password, from_date=None, to_date=None, page_size=20000, user_id=None):
+def get_user_time_entries(username, password, from_date=None, to_date=None, page_size=20000, user_id=None, account_id=None):
     """Fetch all entries for user_id between from_date and to_date (inclusive)."""
-    path = f"{ACCOUNT_ID}/events/min" if ACCOUNT_ID else "events/min"
+    account_id = account_id or DEFAULT_ACCOUNT_ID
+    path = f"{account_id}/events/min" if account_id else "events/min"
     url = f"{BASE_URL}/{path}"
 
     # If dates not given, default to a very wide window (Jan 1 2000 → today)
@@ -206,9 +212,10 @@ def get_user_time_entries(username, password, from_date=None, to_date=None, page
 # FETCH TIME ENTRIES COUNT 
 # ---------------------------------------------------------------------------------------
 
-def get_time_entries_count(username, password, from_date, to_date, filter_type="USER", filter_id=None):
+def get_time_entries_count(username, password, from_date, to_date, filter_type="USER", filter_id=None, account_id=None):
     """Get count of time entries for a user or company in a date range."""
-    path = f"{ACCOUNT_ID}/events/count" if ACCOUNT_ID else "events/count"
+    account_id = account_id or DEFAULT_ACCOUNT_ID
+    path = f"{account_id}/events/count" if account_id else "events/count"
     url = f"{BASE_URL}/{path}"
     
     # Validate parameters
@@ -279,9 +286,9 @@ def get_teams(username, password):
 # TIMESHEET FILE PROCESSOR
 # ---------------------------------------------------------------------------------------
 
-def process_timesheet_file(filepath, username, password, user_id):
+def process_timesheet_file(filepath, username, password, user_id, account_id=None):
     print("[+] Fetching existing projects...")
-    project_map = get_all_projects(username, password)
+    project_map = get_all_projects(username, password, account_id)
 
     current_date, in_block, current_project = None, False, None
     with open(filepath, "r", encoding="utf-8") as f:
@@ -317,12 +324,12 @@ def process_timesheet_file(filepath, username, password, user_id):
                         print(f"Project '{current_project}' not found. Skipping task '{desc}'")
                         continue
                     key = (proj_id, desc)
-                    task_id = task_cache.get(key) or post_create_task(desc, proj_id, username, password, user_id)
+                    task_id = task_cache.get(key) or post_create_task(desc, proj_id, username, password, user_id, account_id)
                     if not task_id:
                         continue
                     task_cache[key] = task_id
                     post_create_event(start_dt, end_dt, task_id, username, password, user_id,
-                                      notes=f"Auto entry for project '{current_project}'")
+                                     notes=f"Auto entry for project '{current_project}'", account_id=account_id)
 
 # ---------------------------------------------------------------------------------------
 # CLI
@@ -335,6 +342,8 @@ def main():
     p.add_argument("--password", required=True, help="TrackingTime password")
     p.add_argument("--user-id", type=int, help="User ID for tasks/time entries (default: %(default)s)",
                    default=DEFAULT_USER_ID)
+    p.add_argument("--account-id", type=int, help="Account ID for API operations (default: %(default)s)",
+                   default=DEFAULT_ACCOUNT_ID)
 
     p.add_argument("--get-info", action="store_true", help="List all users (raw JSON)")
     p.add_argument("--get-projects", action="store_true", help="List all projects")
@@ -349,24 +358,25 @@ def main():
     args = p.parse_args()
 
     if args.get_info:
-        get_account_info(args.username, args.password)
+        get_account_info(args.username, args.password, args.account_id)
         return
     if args.get_projects:
-        get_all_projects_raw(args.username, args.password)
+        get_all_projects_raw(args.username, args.password, args.account_id)
         return
     if args.get_teams:
         get_teams(args.username, args.password)
         return
     if args.get_time_tracking:
-        get_user_time_entries(args.username, args.password, args.from_date, args.to_date, user_id=args.user_id)
+        get_user_time_entries(args.username, args.password, args.from_date, args.to_date, 
+                            user_id=args.user_id, account_id=args.account_id)
         return
     if args.get_time_count:
-        filter_id = args.user_id if args.count_filter == "USER" else DEFAULT_USER_ID
+        filter_id = args.user_id if args.count_filter == "USER" else None
         get_time_entries_count(args.username, args.password, args.from_date, args.to_date, 
-                             args.count_filter, filter_id)
+                             args.count_filter, filter_id, args.account_id)
         return
     if args.timesheet_file:
-        process_timesheet_file(args.timesheet_file, args.username, args.password, args.user_id)
+        process_timesheet_file(args.timesheet_file, args.username, args.password, args.user_id, args.account_id)
         return
 
     print("No action specified.")
