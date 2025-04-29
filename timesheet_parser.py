@@ -11,7 +11,7 @@ BASE_URL = "https://app.trackingtime.co/api/v4"
 
 # If your account/team requires specifying an account ID in the path:
 # e.g. https://app.trackingtime.co/api/v4/<ACCOUNT_ID>/*
-ACCOUNT_ID = None  # e.g. 12345
+ACCOUNT_ID = 451010  # e.g. 12345
 
 # The user ID for created tasks/time entries. Typically your own user or a coworker.
 DEFAULT_USER_ID = 625297
@@ -203,6 +203,49 @@ def get_user_time_entries(username, password, from_date=None, to_date=None, page
         print(f"  [{eid}] {start} -> {end} | {hh:02d}:{mm:02d} | {project} / {task}")
 
 # ---------------------------------------------------------------------------------------
+# FETCH TIME ENTRIES COUNT 
+# ---------------------------------------------------------------------------------------
+
+def get_time_entries_count(username, password, from_date, to_date, filter_type="USER", filter_id=None):
+    """Get count of time entries for a user or company in a date range."""
+    path = f"{ACCOUNT_ID}/events/count" if ACCOUNT_ID else "events/count"
+    url = f"{BASE_URL}/{path}"
+    
+    # Validate parameters
+    if not from_date or not to_date:
+        print("[-] Error: from_date and to_date are required for counting entries")
+        return
+        
+    params = {
+        "filter": filter_type,
+        "from": from_date,
+        "to": to_date,
+    }
+    
+    # Add ID if provided (required for USER filter)
+    if filter_id:
+        params["id"] = filter_id
+    
+    headers = {"User-Agent": USER_AGENT, "Content-Type": "application/json"}
+    print(f"[+] Counting time entries for {filter_type.lower()} " + 
+          (f"ID {filter_id} " if filter_id else "") + 
+          f"from {from_date} to {to_date} ...")
+    print("url:", url)
+    print("Headers:", headers)
+    print("Parameters:", params)
+    r = requests.get(url, params=params, auth=(username, password), headers=headers)
+    if r.status_code != 200:
+        print(f"[-] HTTP {r.status_code} error retrieving entry count: {r.text}")
+        return
+        
+    data = r.json()
+    if data.get("response", {}).get("status") == 200:
+        count = data.get("data", {}).get("count", 0)
+        print(f"[+] Found {count} time entries for the specified period")
+    else:
+        print(f"[-] API error: {data.get('response', {}).get('message')}")
+
+# ---------------------------------------------------------------------------------------
 # TIMESHEET FILE PROCESSOR
 # ---------------------------------------------------------------------------------------
 
@@ -266,19 +309,31 @@ def main():
     p.add_argument("--get-info", action="store_true", help="List all users (raw JSON)")
     p.add_argument("--get-projects", action="store_true", help="List all projects")
     p.add_argument("--get-time-tracking", action="store_true", help="List all time entries for USER_ID")
-    p.add_argument("--from-date", metavar="YYYY-MM-DD", help="Start date for --get-time-tracking")
-    p.add_argument("--to-date", metavar="YYYY-MM-DD", help="End date for --get-time-tracking (inclusive)")
+    p.add_argument("--get-time-count", action="store_true", help="Get count of time entries in a date range")
+    p.add_argument("--count-filter", choices=["USER", "COMPANY"], default="USER", 
+                  help="Filter type for time count: user or company-wide (default: %(default)s)")
+    p.add_argument("--from-date", metavar="YYYY-MM-DD", help="Start date for time queries")
+    p.add_argument("--to-date", metavar="YYYY-MM-DD", help="End date for time queries (inclusive)")
 
     args = p.parse_args()
 
     if args.get_info:
-        get_account_info(args.username, args.password); return
+        get_account_info(args.username, args.password)
+        return
     if args.get_projects:
-        get_all_projects_raw(args.username, args.password); return
+        get_all_projects_raw(args.username, args.password)
+        return
     if args.get_time_tracking:
-        get_user_time_entries(args.username, args.password, args.from_date, args.to_date, user_id=args.user_id); return
+        get_user_time_entries(args.username, args.password, args.from_date, args.to_date, user_id=args.user_id)
+        return
+    if args.get_time_count:
+        filter_id = args.user_id if args.count_filter == "USER" else DEFAULT_USER_ID
+        get_time_entries_count(args.username, args.password, args.from_date, args.to_date, 
+                             args.count_filter, filter_id)
+        return
     if args.timesheet_file:
-        process_timesheet_file(args.timesheet_file, args.username, args.password, args.user_id); return
+        process_timesheet_file(args.timesheet_file, args.username, args.password, args.user_id)
+        return
 
     print("No action specified.")
     p.print_help()
