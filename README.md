@@ -23,7 +23,8 @@ python timesheet_parser.py <timesheet_file.txt> --username "john@doe.com" --pass
 (Alternatively, adapt the script to use environment variables or tokens.)
 
 
-## Get your accoutn ID
+## Get your account ID
 curl -s -u user_email:password \ \
      -H "User-Agent: 'TT-CLI (calum@switchbatteries.com)'" \
      https://app.trackingtime.co/api/v4/teams | jq
+

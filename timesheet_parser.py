@@ -379,7 +379,7 @@ def process_timesheet_file(filepath, username, password, user_id, account_id=Non
 # FETCH PROJECT TIME ENTRIES 
 # ---------------------------------------------------------------------------------------
 
-def get_project_time_entries(username, password, project_id, from_date=None, to_date=None, page_size=20000, account_id=None):
+def get_project_time_entries(username, password, project_id, from_date=None, to_date=None, page_size=20000, account_id=None, user_id=None):
     """Fetch all time entries for a specific project between from_date and to_date (inclusive)."""
     account_id = account_id or DEFAULT_ACCOUNT_ID
     path = f"{account_id}/events/min" if account_id else "events/min"
@@ -418,12 +418,22 @@ def get_project_time_entries(username, password, project_id, from_date=None, to_
             break
         page += 1
 
-    print(f"[+] Retrieved {len(all_entries)} entries for project {project_id}:\n")
-    for ev in all_entries:
+    # Filter by user_id if specified
+    if user_id:
+        user_entries = [ev for ev in all_entries if str(ev.get("uid")) == str(user_id)]
+        print(f"[+] Retrieved {len(user_entries)} entries for project {project_id} and user {user_id} (out of {len(all_entries)} total entries):\n")
+        entries_to_display = user_entries
+    else:
+        print(f"[+] Retrieved {len(all_entries)} entries for project {project_id}:\n")
+        entries_to_display = all_entries
+    
+    for ev in entries_to_display:
         eid, start, end, dur = ev.get("id"), ev.get("s"), ev.get("e"), ev.get("d", 0)
         user, task = ev.get("u"), ev.get("t")
         hh, mm = divmod(dur // 60, 60)
         print(f"  [{eid}] {start} -> {end} | {hh:02d}:{mm:02d} | User: {user} | Task: {task}")
+    
+    return entries_to_display
 
 # ---------------------------------------------------------------------------------------
 # FETCH PROJECT TASKS
@@ -537,7 +547,7 @@ def main():
             print("[-] Error: --project-id is required when using --get-project-events")
             return
         get_project_time_entries(args.username, args.password, args.project_id, args.from_date, args.to_date,
-                              account_id=args.account_id)
+                              account_id=args.account_id, user_id=args.user_id)
         return
     if args.get_project_tasks:
         if not args.project_id:
