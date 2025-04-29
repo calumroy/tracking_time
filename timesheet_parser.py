@@ -292,7 +292,11 @@ def process_timesheet_file(filepath, username, password, user_id, account_id=Non
     print("[+] Fetching existing projects...")
     project_map = get_all_projects(username, password, account_id)
 
-    current_date, in_block, current_project = None, False, None
+    current_date = None
+    in_block = False
+    current_project = None
+    current_task = None
+    
     with open(filepath, "r", encoding="utf-8") as f:
         for raw in f:
             line, stripped = raw.rstrip("\n"), raw.strip()
@@ -301,21 +305,34 @@ def process_timesheet_file(filepath, username, password, user_id, account_id=Non
 
             if stripped.startswith("# date"):
                 current_date = parse_date(stripped.split()[2]) if len(stripped.split()) == 3 else None
-                in_block, current_project = False, None
+                in_block, current_project, current_task = False, None, None
                 continue
+                
             if stripped.lower() == "timesheet":
-                in_block, current_project = True, None
+                in_block = True
+                current_project, current_task = None, None
                 continue
 
             if in_block and current_date:
                 indent = len(line) - len(line.lstrip(" "))
+                
+                # Project line (indentation level 1)
                 if 8 <= indent < 12:
                     current_project = stripped
+                    current_task = None
                     continue
-                if indent >= 12:
+                    
+                # Task line (indentation level 2)
+                elif 12 <= indent < 16:
+                    current_task = stripped
+                    continue
+                
+                # Time entry line (indentation level 3)
+                elif indent >= 16 and current_project and current_task:
                     st, et, desc = parse_time_range(stripped)
                     if not st:
                         continue
+                        
                     sh, sm = float_time_to_hm(st)
                     eh, em = float_time_to_hm(et)
                     start_dt = build_iso_datetime(current_date, sh, sm)
@@ -323,15 +340,23 @@ def process_timesheet_file(filepath, username, password, user_id, account_id=Non
 
                     proj_id = project_map.get(current_project.lower()) if current_project else None
                     if not proj_id:
-                        print(f"Project '{current_project}' not found. Skipping task '{desc}'")
+                        print(f"Project '{current_project}' not found. Skipping entry for task '{current_task}': '{desc}'")
                         continue
-                    key = (proj_id, desc)
-                    task_id = task_cache.get(key) or post_create_task(desc, proj_id, username, password, user_id, account_id, current_project)
+                        
+                    # Use the task name from the timesheet instead of the description as the task name
+                    task_name = current_task
+                    key = (proj_id, task_name)
+                    
+                    # Get or create the task
+                    task_id = task_cache.get(key) or post_create_task(task_name, proj_id, username, password, user_id, account_id, current_project)
                     if not task_id:
                         continue
+                        
                     task_cache[key] = task_id
-                    post_create_event(start_dt, end_dt, task_id, username, password, user_id,
-                                     notes=f"Auto entry for project '{current_project}'", account_id=account_id)
+                    
+                    # Create the time entry with the description as notes
+                    notes = f"{desc} (Auto entry for task '{current_task}' in project '{current_project}')"
+                    post_create_event(start_dt, end_dt, task_id, username, password, user_id, notes=notes, account_id=account_id)
 
 # ---------------------------------------------------------------------------------------
 # FETCH PROJECT TIME ENTRIES 

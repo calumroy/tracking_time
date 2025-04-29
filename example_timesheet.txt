@@ -1,12 +1,18 @@
 # date 140425
     timesheet
-        Centurion
-            9.00 - 12.00 Software design PCS sub controller
+        Centurion Truck Charging Depot
+            Subcontrollers
+                9.00 - 12.00 PCS sub controller
+            Project data research
+                11.00 - 12.00 Reading component documentation
         Batterang
-            12.30 - 17.00 Software Testing TI AM263 embedded platform.
+            Software Testing
+                12.30 - 17.00 TI AM263 embedded platform
 
 # date 150425
     timesheet
-        Centurion
-            8.00 - 11.00 Control System Wiring at Site
-            12.00 - 17.00 Centurion Software design
+        Centurion Truck Charging Depot
+            Hardware Installation at Site
+                8.00 - 11.00 Wiring at Site
+            Software design planning
+                12.00 - 17.00 State Machine Design
