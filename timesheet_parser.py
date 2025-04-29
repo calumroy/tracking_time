@@ -246,6 +246,36 @@ def get_time_entries_count(username, password, from_date, to_date, filter_type="
         print(f"[-] API error: {data.get('response', {}).get('message')}")
 
 # ---------------------------------------------------------------------------------------
+# FETCH TEAMS/ACCOUNTS
+# ---------------------------------------------------------------------------------------
+
+def get_teams(username, password):
+    """Get all teams/accounts the user has access to."""
+    url = f"{BASE_URL}/teams"
+    headers = {"User-Agent": USER_AGENT, "Content-Type": "application/json"}
+    
+    print("[+] Retrieving teams/accounts...\n")
+    r = requests.get(url, auth=(username, password), headers=headers)
+    if r.status_code != 200:
+        print(f"[-] HTTP {r.status_code} error retrieving teams: {r.text}")
+        return
+    
+    data = r.json()
+    if data.get("response", {}).get("status") == 200 and "data" in data:
+        teams = data["data"]
+        print(f"[+] Found {len(teams)} teams/accounts:")
+        for team in teams:
+            account_id = team.get("account_id", "N/A")
+            company = team.get("company", "(No name)")
+            role = team.get("role", "N/A")
+            is_default = team.get("is_default", False)
+            status = team.get("status", "N/A")
+            print(f"    ID: {account_id}, Name: {company}, Role: {role}, " +
+                  f"Status: {status}" + (" [DEFAULT]" if is_default else ""))
+    else:
+        print(f"[-] API error: {data.get('response', {}).get('message')}")
+
+# ---------------------------------------------------------------------------------------
 # TIMESHEET FILE PROCESSOR
 # ---------------------------------------------------------------------------------------
 
@@ -308,6 +338,7 @@ def main():
 
     p.add_argument("--get-info", action="store_true", help="List all users (raw JSON)")
     p.add_argument("--get-projects", action="store_true", help="List all projects")
+    p.add_argument("--get-teams", action="store_true", help="List all teams/accounts")
     p.add_argument("--get-time-tracking", action="store_true", help="List all time entries for USER_ID")
     p.add_argument("--get-time-count", action="store_true", help="Get count of time entries in a date range")
     p.add_argument("--count-filter", choices=["USER", "COMPANY"], default="USER", 
@@ -322,6 +353,9 @@ def main():
         return
     if args.get_projects:
         get_all_projects_raw(args.username, args.password)
+        return
+    if args.get_teams:
+        get_teams(args.username, args.password)
         return
     if args.get_time_tracking:
         get_user_time_entries(args.username, args.password, args.from_date, args.to_date, user_id=args.user_id)
