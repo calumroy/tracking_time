@@ -1,0 +1,44 @@
+
+# date 120525
+    timesheet
+        Centurion Truck Charging Depot
+            Project data research
+                9.00 - 17.30 PCS2 fault investigation - line contactor feedback signal (code 7300). Changed p862 parameter from 1000ms to 2000ms on both PCS1 and PCS2. Saved to project and committed to Git repo.
+        Hybrid Haul Truck
+            Engineering - Research/Planning/Documentation
+                15.00 - 17.30 Fixed plots for the Haul truck data and investigated service brake plotting capabilities.
+
+# date 130525
+    timesheet
+        Centurion Truck Charging Depot
+            Hardware Installation at Site
+                9.00 - 10.00 Visited Nu-phase to drop off spare ADAM IO module. Discussed SMSB controls board installation for next week.
+        Hybrid Haul Truck
+            Engineering - Research/Planning/Documentation
+                11.00 - 18.00 Finished control system architecture design and requirements documentation. Updated sensors and control architecture overview.
+
+# date 140525
+    timesheet
+        Hybrid Haul Truck
+            Engineering - Research/Planning/Documentation
+                9.00 - 11.00 Updated sensors list for logging requirements.
+        SRG Sandvik Rig
+            Datalogging Software development
+                11.00 - 12.00 Testing drill rig communication protocols at Switch.
+            CanBus decoding
+                12.30 - 17.00 Analyzing and testing network protocols for data extraction from drill rig SCU.
+
+# date 150525
+    timesheet
+        SRG Sandvik Rig
+            Datalogging Software development
+                9.00 - 18.00 Investigated GPS data extraction methods. Set up influxdb logging system and evaluated man-in-the-middle vs. alternative connection options.
+
+# date 160525
+    timesheet
+        Centurion Truck Charging Depot
+            Hardware Installation at Site
+                9.00 - 12.00 Charger migration to use Intesis as OCPP server. Documented EV charger serial numbers and configuration details.
+        SRG Sandvik Rig
+            Datalogging Software development
+                12.30 - 17.30 Tested managed switch with port mirroring setup. Decoded additional Ethernet values for Pantera drill rig and updated sample server for data logging.

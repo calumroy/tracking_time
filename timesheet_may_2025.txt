@@ -1,0 +1,337 @@
+
+# date 120525
+	Centurion
+		We had a fualt on PCS 2 
+			code: 7300
+			Thsi is the line contactor feedback signal to ALM02 unit in STARTER software. View Alarm histroy right click the ALM02 unit the diagnostics then alarm history.
+		Xuan said in email on the 24th April 
+			Reply : check the P861 and increase the value to solve the problem.
+		I chnaged the p862 parameter
+			It was 1000ms I changed to 2000ms
+			In the STARTER software changes made in online mode are not saved.
+				You need to click Save RAM to ROM (copy RAM to ROM button) 
+				You need to save to the project as well otherwise the project will not have the changes you made.
+					Upload to Project (click the project to PG button), this copies fomr the device
+			I made the same change on both PCS2 and PCS1
+			Projct saved and committed to the Git repo under the PCS docs
+				The actual location of the STARTER software when starting the STARTER in my VM is at
+					/home/calum/Documents/projects/shared_vm_windows/Siemens/Siemens_PCS_Software_Final_28022025/SmartCon/
+						the fiel that STARTER iopens is the SmartCon.s7p
+				I have saved this whole dir as a zip to our github project
+
+		CRRC downloaded logs and is looking into issue.
+
+	Hybrid Haul truck
+		Fixed plots for the Hual truck data Kevin took.
+		Asked about if the service brake is a value that ET can plot?
+
+# date 130525
+	Centurion
+		9am - 10
+		Went to Nu-phase dropped off spare ADAM IO module
+			Sam said the south site SMSB controls board is going in the container next week on Teusday.
+			Send Kevin up to draw up the changes to the control system
+		TODO
+			Test the modbus comms and make sure the poll rate of all the CB isn't over 60secs
+				We may need to add another modbus serial loop if it is too high.
+					Order another modbus serial to etherent converter.
+
+	Hybrid Haul truck
+		11am to 6pm
+		Finish required sensors and control architecture overview.
+		Worked on control systme architecture design for hual truck
+			See github repo for design document
+
+
+# date 140525
+    Haul truck 9am to 11am
+        Update sensors list. The sensors we care about and want to log.
+
+    SRG 11am to 5pm (had lunch at 12.30pm)
+        Testing on the drill rig at Switch
+        Test
+            If we can sedn as a seperate computer on the local drill rig interface requests for particular data.
+                This will confirm if we can just setup our own embeded cpu to request info across a switch or if we need to be a man in the middle.
+
+        Tetsing on the drill rig. I am trying to ghet the SCU on the drill rig to respond to my computers requests instead of just the HMI>
+
+			REQUEST Frame 
+			Internet Protocol Version 4, Src: 192.168.20.2, Dst: 192.168.20.10
+			Frame 658: 230 bytes on wire (1840 bits), 230 bytes captured (1840 bits) on interface enp118s0, id 0
+			Ethernet II, Src: CC_03:b5:5b (00:26:05:03:b5:5b), Dst: MS-NLB-PhysServer-32_18:49:18:28 (02:20:18:49:18:28)
+			Internet Protocol Version 4, Src: 192.168.20.2, Dst: 192.168.20.10
+			User Datagram Protocol, Src Port: 43356, Dst Port: 1234
+			Data (188 bytes)
+			    Data […]: d6702d3301000000c7640100010004000b030000010004000d030000010004000e030000010004000f03000001000400040300000100040005030000010004000603000001000400070300000100040009030000010004000a030000010004000c03000001000400d600000001000400840
+			    [Length: 188]
+
+
+			d6 70 2d 33 01 00
+			00 00 c7 64 01 00 01 00 04 00 0b 03 00 00 01 00
+			04 00 0d 03 00 00 01 00 04 00 0e 03 00 00 01 00
+			04 00 0f 03 00 00 01 00 04 00 04 03 00 00 01 00
+			04 00 05 03 00 00 01 00 04 00 06 03 00 00 01 00
+			04 00 07 03 00 00 01 00 04 00 09 03 00 00 01 00
+			04 00 0a 03 00 00 01 00 04 00 0c 03 00 00 01 00
+			04 00 d6 00 00 00 01 00 04 00 84 00 00 00 01 00
+			04 00 79 00 00 00 01 00 04 00 c2 00 00 00 01 00
+			04 00 2e 02 00 00 01 00 04 00 c3 00 00 00 01 00
+			04 00 c7 00 00 00 01 00 04 00 da 00 00 00 01 00
+			04 00 c4 00 00 00 01 00 04 00 c5 00 00 00 01 00
+			04 00 c6 00 00 00
+
+
+
+			RESPONSE Frame
+			Frame 659: 358 bytes on wire (2864 bits), 358 bytes captured (2864 bits) on interface enp118s0, id 0
+			Ethernet II, Src: MS-NLB-PhysServer-32_18:49:18:28 (02:20:18:49:18:28), Dst: CC_03:b5:5b (00:26:05:03:b5:5b)
+			Internet Protocol Version 4, Src: 192.168.20.10, Dst: 192.168.20.2
+			User Datagram Protocol, Src Port: 1234, Dst Port: 43356
+			Data (316 bytes)
+			    Data […]: 41fc0556020000002247000000800400c7640100014005000b0300000078c6dc014005000d03000000020000014005000e03000000400c00014005000f03000000c7364001400500040300000051d649014005000503000000000000014005000603000000400c000140050007030000007
+			    [Length: 316]
+
+
+
+			41 fc 05 56 02 00
+			00 00 22 47 00 00 00 80 04 00 c7 64 01 00 01 40
+			05 00 0b 03 00 00 00 78 c6 dc 01 40 05 00 0d 03
+			00 00 00 02 00 00 01 40 05 00 0e 03 00 00 00 40
+			0c 00 01 40 05 00 0f 03 00 00 00 c7 36 40 01 40
+			05 00 04 03 00 00 00 51 d6 49 01 40 05 00 05 03
+			00 00 00 00 00 00 01 40 05 00 06 03 00 00 00 40
+			0c 00 01 40 05 00 07 03 00 00 00 7e ef bf 01 40
+			05 00 09 03 00 00 00 94 58 41 01 40 05 00 0a 03
+			00 00 00 ce f7 53 01 40 05 00 0c 03 00 00 00 00
+			00 00 01 40 05 00 d6 00 00 00 00 99 99 99 01 40
+			05 00 84 00 00 00 00 01 00 00 01 40 0c 00 79 00
+			00 00 00 00 00 32 a2 7e 36 c1 01 40 0c 00 c2 00
+			00 00 80 14 12 bc 6b a9 a8 40 01 40 05 00 2e 02
+			00 00 03 8f c2 f5 01 40 0c 00 c3 00 00 00 3f 81
+			45 b8 a1 8f c6 40 01 40 0c 00 c7 00 00 00 00 00
+			00 00 00 80 66 40 01 40 0c 00 da 00 00 00 00 00
+			00 00 00 00 00 00 01 40 0c 00 c4 00 00 00 a8 c6
+			4b 8f 3f 94 58 41 01 40 0c 00 c5 00 00 00 79 e9
+			26 31 ac 7f 05 c1 01 40 0c 00 c6 00 00 00 ac 1c
+			5a 64 3b ff 3a 40
+
+
+			00 26 05 03 b5 5b 02 20 18 49 18 28 08 00 45 00
+			01 58 00 00 40 00 40 11 90 38 c0 a8 14 0a c0 a8
+			14 02 04 d2 a9 5c 01 44 0d 0c 41 fc 05 56 02 00
+			00 00 22 47 00 00 00 80 04 00 c7 64 01 00 01 40
+			05 00 0b 03 00 00 00 78 c6 dc 01 40 05 00 0d 03
+			00 00 00 02 00 00 01 40 05 00 0e 03 00 00 00 40
+			0c 00 01 40 05 00 0f 03 00 00 00 c7 36 40 01 40
+			05 00 04 03 00 00 00 51 d6 49 01 40 05 00 05 03
+			00 00 00 00 00 00 01 40 05 00 06 03 00 00 00 40
+			0c 00 01 40 05 00 07 03 00 00 00 7e ef bf 01 40
+			05 00 09 03 00 00 00 94 58 41 01 40 05 00 0a 03
+			00 00 00 ce f7 53 01 40 05 00 0c 03 00 00 00 00
+			00 00 01 40 05 00 d6 00 00 00 00 99 99 99 01 40
+			05 00 84 00 00 00 00 01 00 00 01 40 0c 00 79 00
+			00 00 00 00 00 32 a2 7e 36 c1 01 40 0c 00 c2 00
+			00 00 80 14 12 bc 6b a9 a8 40 01 40 05 00 2e 02
+			00 00 03 8f c2 f5 01 40 0c 00 c3 00 00 00 3f 81
+			45 b8 a1 8f c6 40 01 40 0c 00 c7 00 00 00 00 00
+			00 00 00 80 66 40 01 40 0c 00 da 00 00 00 00 00
+			00 00 00 00 00 00 01 40 0c 00 c4 00 00 00 a8 c6
+			4b 8f 3f 94 58 41 01 40 0c 00 c5 00 00 00 79 e9
+			26 31 ac 7f 05 c1 01 40 0c 00 c6 00 00 00 ac 1c
+			5a 64 3b ff 3a 40
+
+
+
+
+			sudo python send_master_antenna_height.py --iface enp118s0 --src-mac 00:26:05:03:b5:5b --dst-mac 02:20:18:49:18:28 --src-ip 192.168.20.2 --dst-ip 192.168.20.10 --sport 43356 --dport 1234
+
+
+			I see this msg being sent
+			Frame 9850: 62 bytes on wire (496 bits), 62 bytes captured (496 bits) on interface enp118s0, id 0
+			Ethernet II, Src: CC_03:b5:5b (00:26:05:03:b5:5b), Dst: MS-NLB-PhysServer-32_18:49:18:28 (02:20:18:49:18:28)
+			Internet Protocol Version 4, Src: 192.168.20.2, Dst: 192.168.20.10
+			User Datagram Protocol, Src Port: 43356, Dst Port: 1234
+			Data (20 bytes)
+			    Data: d6702d3301000000c764010001000400ce000000
+			    [Length: 20]
+
+			No response
+
+			Use my mac address for my computer instead
+
+			sudo python send_master_antenna_height.py --iface enp118s0 --src-mac c4:ef:bb:a1:6c:cf --dst-mac 02:20:18:49:18:28 --src-ip 192.168.20.202 --dst-ip 192.168.20.10 --sport 43356 --dport 1234
+
+			I tried this but still no response
+			(sniffer) calum@calum:~/Documents/projects/SRG/sniffer$ python request_eth_data_pantera_dpi1500.py  --iface enp118s0 --src-mac c4:ef:bb:a1:6c:cf --dst-mac 02:20:18:49:18:28 --src-ip 192.168.20.202 --dst-ip 192.168.20.10 --sport 43356 --dport 1234
+			→ Sent Master_Antenna_Height request (20 B payload).
+
+			wireshark filter
+				ip.src == 192.168.20.2 || (ip.dst != 224.0.0.30 && ip.dst != 224.0.0.27)
+
+
+
+			I was sendign this using the HMI mac address
+
+			Frame 159: 94 bytes on wire (752 bits), 94 bytes captured (752 bits) on interface enp118s0, id 0
+			Ethernet II, Src: CC_03:b5:5b (00:26:05:03:b5:5b), Dst: MS-NLB-PhysServer-32_18:49:18:28 (02:20:18:49:18:28)
+			Internet Protocol Version 4, Src: 192.168.20.2, Dst: 192.168.20.10
+			User Datagram Protocol, Src Port: 43356, Dst Port: 1234
+			Data (52 bytes)
+			    Data: 5df2280a010000006fa4030001000400ce000000010004008300000001000400f401000002000c00ff0100000000000000000000
+			    [Length: 52]
+
+			No response form the SCU
+
+			When we Man in the middle between the HMI and the SCU we see this first message
+			Frame 444: 60 bytes on wire (480 bits), 60 bytes captured (480 bits) on interface enp118s0, id 0
+			Ethernet II, Src: CC_03:b5:5b (00:26:05:03:b5:5b), Dst: IPv4mcast_16 (01:00:5e:00:00:16)
+			Internet Protocol Version 4, Src: 192.168.20.2, Dst: 224.0.0.22
+			Internet Group Management Protocol
+			    [IGMP Version: 3]
+			    Type: Membership Report (0x22)
+			    Reserved: 00
+			    Checksum: 0xf902 [correct]
+			    [Checksum Status: Good]
+			    Reserved: 0000
+			    Num Group Records: 1
+			    Group Record : 224.0.0.251  Change To Exclude Mode
+			        Record Type: Change To Exclude Mode (4)
+			        Aux Data Len: 0
+			        Num Src: 0
+			        Multicast Address: 224.0.0.251
+
+			and then we get responses to request messages
+
+			Frame 448: 1294 bytes on wire (10352 bits), 1294 bytes captured (10352 bits) on interface enp118s0, id 0
+			Ethernet II, Src: CC_03:b5:5b (00:26:05:03:b5:5b), Dst: MS-NLB-PhysServer-32_18:49:18:28 (02:20:18:49:18:28)
+			Internet Protocol Version 4, Src: 192.168.20.2, Dst: 192.168.20.10
+			User Datagram Protocol, Src Port: 43356, Dst Port: 1234
+			Data (1252 bytes)
+			    Data […]: d4542f4e0100000081b7030001000400240000000300000003000000030000000300000003000000030000000300000003000000030000000300000003000000030000000300000003000000030000000300000003000000030000000300000003000000030000000300000003000000030
+			    [Length: 1252]
+
+			Response
+			Frame 449: 1366 bytes on wire (10928 bits), 1366 bytes captured (10928 bits) on interface enp118s0, id 0
+			Ethernet II, Src: MS-NLB-PhysServer-32_18:49:18:28 (02:20:18:49:18:28), Dst: CC_03:b5:5b (00:26:05:03:b5:5b)
+			Internet Protocol Version 4, Src: 192.168.20.10, Dst: 192.168.20.2
+			User Datagram Protocol, Src Port: 1234, Dst Port: 43356
+			Data (1324 bytes)
+			    Data […]: 4482bd5302000000010000000080040081b70300014008002400000059cf96290340000003400000034000000340000003400000034000000340000003400000034000000340000003400000034000000340000003400000034000000340000003400000034000000340000003400000034
+			    [Length: 1324]
+
+
+# date 150525
+	SRG
+
+	wireshark editcap to edit pcap files and delete packets
+		e.g usage
+			editcap -r ./packet_captures/captured_packets_1747280044.pcap sniffer/packet_captures/only_packet_187.pcap 187
+
+"78","0.910359","192.168.20.2","192.168.20.10","UDP","174","55985 → 1234 Len=132"
+
+	SRG
+		So the SCU will respond to requests for information but only while the HMI is connectted.
+			When the HMI is disconnected the SCU will continue communicating but only up to a minute
+				Sometimeout occurrs and then it stops communicating.
+
+		When plugging th
+
+
+		I made this capture of just one request fro info form the SCU
+			sniffer/packet_captures/only_packet_78.pcap
+			I modifyied this single packet so the source MAC address is from my computer instead of the original HMI mac address.
+				(sniffer) calum@calum:~/Documents/projects/SRG/sniffer$ tcprewrite --enet-smac=c4:ef:bb:a1:6c:cf --infile=./packet_captures/only_packet_78.pcap --outfile=./packet_captures/only_packet_78_modified.pcap
+			I did this so we can test if the src.mac adress matters for the SCU to respond.
+				The reason we wnat to know is 
+
+	podman get the logs of the container
+		podman logs -f worker
+
+
+	Start live logging
+			GET http://localhost:8080/api/start_tcp_live?interface=enp118s0&source_ip=192.168.20.10&destination_ip=192.168.20.2
+		stop
+			GET http://localhost:8080/api/stop_test_data
+	remove containers
+		sudo podman-compose down; podman volume rm srg-sample-webserver_influxdb-data; podman volume rm srg-sample-webserver_influxdb-config
+	Start with sudo podman to allow logging off network interface
+		sudo -E podman-compose -f docker-compose.yml -f compose.capture.yml up --build
+
+	Summary on the Drill rig
+		I could not get the SCU on the drill rig to respond to other requests for information.
+		There is a startup handshake between the SCU and HMI that I could not simulate for other devices.
+		We can use man in the middle or buy a managed switch to port mirror data onto another port to then read form.
+		We do get GPS data even when just listenign to data, but I am unsure if we would always get all the GPS data we are interested in even when the HMI is not viewing the GPS page for example? 
+
+	Timesheet today
+		9am - 6pm
+			SRG
+				Investigate getting GPS data off the screen and logging to influxdb.
+				Looking at alternative options to being a man in the middle device.
+				I also have influxdb logging.
+
+# date 160525
+	Centurion
+		We are swapping the rest of the charger over to use the intesis as the OCPP server today
+			Tritium Case number  00154514
+		EV charger serial numbers
+			Charger 1: 062301440
+			Charger 2: 062301441
+			Charger 3: 062301442
+			Charger 4: 062301443
+			Charger 5: 062301444
+			Charger 6: 062301445
+			Charger 7: 062301447
+			Charger 8: 062301448
+			Charger 9: 062301449
+			Charger 10: 062301452
+
+			ws://192.168.10.240
+
+		Tritium Case 00154535
+			INtesis Has startr trasnaction ID tag alsways 1234567
+			Does this come from the tritium is the tritium always reporting 1234567?
+				See ID Tokens in OCPP 1.6 document. 
+			
+
+		TODO
+			Send Ralton Fiber termination box details
+				He will get the fiber terminatied for the previous solar.
+
+	SRG
+		Decoding more ethernet valeus
+			I could replay a tcp log from before over the loopback using this command
+				GET http://localhost:8080/api/start_tcp_live?interface=lo&source_ip=192.168.20.10&destination_ip=192.168.20.2
+				sudo tcpreplay   -i lo ./pantera_switch_log_140525_STARTUP_from_off_log
+		
+		Viv connectted in a managed switch today and we port mirrored form one port back to my computer running the SRG sample server.
+			We found that the drill bit position is sent on all pages and sees to be always beeing sent
+			We found some more adress of values specific to the panetera. These are a bit different to the leopard.
+			We found that some values are not always reported only when viewing certain pages.
+
+		SUmmary of SRG drill rig testing.
+			We could not work out the handshake protocol betweent he HMI and SCU.
+			Requests only work if you sned the request as having the saem src and dst ip and same mac address as the HMI and after the HMI has done the handshaking protocol
+			We can just port mirror using a manged switch and still intercept drill pit position and other data withouth having ot be the MAn in the middle.
+			We have discovered most of the etherent address for the pantera dp1500i drill rig. This rig had slightly different message address to the leopard which we previously decoded ethernet data for,.
+			We have updated our SRG-sample-server to now decode and log live data from the drill rig.
+				This is successfully logging real data off the patera and then serving it as the API we have agreed upon to give the SRG android tema access so they can integratew this data into there app.
+			We did not try to send requests via the port mirroring (as this may upset comms fomr the HMI to the SCU)
+				Sending requests out of the port to our computer may upset the ARP protocol and cause comms between HMI and SCU to get upset.
+					We did not try this.
+			I think for now we find a managhed switch to install and a industrial embedded computer to then setup on the drill rig.
+				We just use port mirroring and log what we can (don;t send our own requests).
+			
+			TODO
+			We still need to finish developing the CAN logging to the influxdb (just connect up our CAN decoding script to the data base logging).
+			Finish improving the API so it gives more data about the state of the running service and if the systme is healthy ect.
+			Design final hardware set
+			Purcahse hardware for install on a real drill rig on site.
+				Buidl final hardware for real drill rig site installtion,.
+			Wait for SRG's android app dev team to confirm they are ready to start injesting data from our API.
+				Test this app with our API using simualted data
+			Go to Site and install our hardware and confirm we can log real data off a running Drill rig.
+
+
+			
+

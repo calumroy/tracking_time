@@ -12,7 +12,7 @@
             "args": [
                 "./example_timesheet.txt",
                 "--username", "calum@switchbatteries.com",
-                "--password", "Switchon_timetracker"
+                "--password", "password"
             ],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -26,7 +26,7 @@
                 "--get-project-tasks",
                 "--project-id", "2349452",
                 "--username", "calum@switchbatteries.com",
-                "--password", "Switchon_timetracker"
+                "--password", "password"
             ],
             "console": "integratedTerminal",
             "justMyCode": true
@@ -40,7 +40,7 @@
                 "--get-project-events",
                 "--project-id", "2094207",
                 "--username", "calum@switchbatteries.com",
-                "--password", "Switchon_timetracker"
+                "--password", "password"
             ],
             "console": "integratedTerminal",
             "justMyCode": true

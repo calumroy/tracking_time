@@ -1,0 +1,42 @@
+
+# date 020525
+	Centurion
+		Ev Charging testing
+			BP support
+			Tritium support 
+				case number
+				153958
+				tritium support
+				0731478588
+
+				Ev charger 1 serial number 062301440
+
+				terminal change 
+				helium is a tool tritium uses to change configu doesn;t always show correct config.
+				Ask tritium to log in via the terminal to confirm the setting is correct.
+				BP likely just changes the Helium settings (which doesn;t always actually change the chargers config)
+
+				Alex changed intesis modbus settigns 
+				on the configuration page of the intesis MAPS software
+				Modbus slave
+					Byte order 32 bits register :  little Endian
+
+
+		generator
+			THe 24V batteries have run out of power and I turned off the generator
+			We need to jump start them and then charge the batteries.
+				I need to run the generator weekly or install a more permanent recharge solution for the site
+
+		Tried to get centurion internet working
+			The ethernet cable goes to a ubiquiti loco m5 radio link that Centurion Sebastion Configured
+				It does nto seem to provide an internet link
+			We had some weird issues with the fiber to ethernet converter.\
+
+		ToDO
+			Finish EV chargers integration so we can actually limit the chargers if the Battery SOC gets too low.
+			Fix generator 24V battery
+			Check Centurion internet connection
+
+	Timesheet
+		Centurion
+			Ev charging integration and network setup at North Site
